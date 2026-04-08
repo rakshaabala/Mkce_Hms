@@ -847,7 +847,7 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                     // Emergency leave restrictions are handled by applyEmergencyLeaveRestrictions()
                                     fromDateInput.attr('min', todayStr);
                                 } else if (leaveType.includes('od')) {
-                                    fromDateInput.attr('min', todayStr);
+                                    fromDateInput.attr('min', tomorrowStr).val(tomorrowStr);
                                 } else if (leaveType.includes('general')) {
                                     // As checkGeneralLeaveRestriction handles the min/max dates for general leave
                                     // But if General Leave is NOT active, it falls to the next else.
