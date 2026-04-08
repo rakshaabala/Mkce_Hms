@@ -661,6 +661,69 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                 hour12: true
                             });
 
+                            function getTodayYmd() {
+                                return new Date().toISOString().split('T')[0];
+                            }
+
+                            function isOutingSelected() {
+                                const leaveTypeSelect = $('#leave_type_id').find('option:selected');
+                                const leaveType = leaveTypeSelect.data('type-name') ? leaveTypeSelect.data('type-name').toLowerCase() : '';
+                                return leaveType.includes('outing');
+                            }
+
+                            function to24Hour(hour12, minute, ampm) {
+                                let hour = parseInt(hour12, 10) % 12;
+                                if ((ampm || '').toUpperCase() === 'PM') {
+                                    hour += 12;
+                                }
+                                return {
+                                    hour,
+                                    minute: parseInt(minute, 10)
+                                };
+                            }
+
+                            function lockSelectToValue(selector, fixedValue) {
+                                const select = $(selector);
+                                select.val(fixedValue);
+                                select.find('option').each(function () {
+                                    $(this).prop('disabled', $(this).val() !== fixedValue);
+                                });
+                                select.trigger('change');
+                            }
+
+                            function unlockSelectOptions(selector) {
+                                $(selector).find('option').prop('disabled', false);
+                            }
+
+                            function applyOutingRestrictions() {
+                                const fromDateInput = $('#from_date');
+                                const toDateInput = $('#to_date');
+                                const generalInfo = $('#general_leave_info');
+
+                                if (isOutingSelected()) {
+                                    const todayStr = getTodayYmd();
+
+                                    fromDateInput.attr('min', todayStr).attr('max', todayStr).val(todayStr).prop('readonly', true);
+                                    toDateInput.attr('min', todayStr).attr('max', todayStr).val(todayStr).prop('readonly', true);
+
+                                    // Keep return time constant at 11:30 PM for outing
+                                    lockSelectToValue('#to_time', '11');
+                                    lockSelectToValue('#to_minute', '30');
+                                    lockSelectToValue('#to_ampm', 'PM');
+
+                                    generalInfo.html(`
+                                        <i class="fas fa-info-circle text-info me-1"></i>
+                                        <strong>Outing Rule:</strong> Outing is allowed only for today and return time is fixed at <strong>11:30 PM</strong>.
+                                    `).show();
+                                } else {
+                                    fromDateInput.prop('readonly', false);
+                                    toDateInput.prop('readonly', false);
+                                    unlockSelectOptions('#to_time');
+                                    unlockSelectOptions('#to_minute');
+                                    unlockSelectOptions('#to_ampm');
+                                }
+                            }
+
                             // 🔑 UPDATED: Function to check General Leave Restriction and update UI
                             function checkGeneralLeaveRestriction(isEditing = false) {
                                 const leaveTypeSelect = $('#leave_type_id');
@@ -745,6 +808,10 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                 } else if (leaveType.includes('general')) {
                                     // As checkGeneralLeaveRestriction handles the min/max dates for general leave
                                     // But if General Leave is NOT active, it falls to the next else.
+                                } else if (leaveType.includes('outing')) {
+                                    // Outing is constrained to today's date only
+                                    fromDateInput.attr('min', todayStr).attr('max', todayStr).val(todayStr);
+                                    toDateInput.attr('min', todayStr).attr('max', todayStr).val(todayStr);
                                 } else {
                                     // Default: minimum start is tomorrow
                                     fromDateInput.attr('min', tomorrowStr);
@@ -766,6 +833,7 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                             // Re-run restrictions when leave type changes
                             $('#leave_type_id').on('change', function() {
                                 checkGeneralLeaveRestriction($('#leave_id').val() !== '');
+                                applyOutingRestrictions();
                             });
 
                             // 1. OPEN APPLY MODAL (NEW LEAVE)
@@ -789,6 +857,7 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                 
                                 checkGeneralLeaveRestriction(false); // Check restriction for NEW leave
                                 setDateRestrictions(); // Apply default date restrictions
+                                applyOutingRestrictions(); // Apply outing-specific constraints if selected
                                 
                                 // Enable leave type selection for new applications
                                 $('#leave_type_id').prop('disabled', false);
@@ -860,6 +929,7 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                 
                                 checkGeneralLeaveRestriction(true); // Ignore restriction for EDITING
                                 setDateRestrictions(); // Re-apply default date restrictions
+                                applyOutingRestrictions(); // Apply outing-specific constraints for edit view
                                 $('#leaveModal').modal('show');
                             });
 
@@ -977,6 +1047,34 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                         }
                                     }
                                 }
+
+                                if (leaveType.includes('outing')) {
+                                    const todayStr = getTodayYmd();
+                                    const selectedFromDate = $('#from_date').val();
+                                    const selectedToDate = $('#to_date').val();
+
+                                    if (selectedFromDate !== todayStr || selectedToDate !== todayStr) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        Swal.fire('Date Error', 'Outing can be applied only for today.', 'error');
+                                        $('#from_date').addClass('is-invalid');
+                                        $('#to_date').addClass('is-invalid');
+                                        return;
+                                    }
+
+                                    const endTime = to24Hour($('#to_time').val(), $('#to_minute').val(), $('#to_ampm').val());
+                                    const isFixedOutingTime = (endTime.hour === 23 && endTime.minute === 30 && $('#to_ampm').val() === 'PM');
+
+                                    if (!isFixedOutingTime) {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        Swal.fire('Time Error', 'For outing, return time is fixed at 11:30 PM.', 'error');
+                                        $('#to_time').addClass('is-invalid');
+                                        $('#to_minute').addClass('is-invalid');
+                                        $('#to_ampm').addClass('is-invalid');
+                                        return;
+                                    }
+                                }
                                 
                                 if (!form.checkValidity()) {
                                     event.preventDefault();
@@ -1032,10 +1130,20 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                     // Simplified variable assignment and date formatting
                                     const leaveID = row.Leave_ID; 
                                     const fromDateObj = new Date(row.From_Date);
-                                    const fromDateDisplay = `${fromDateObj.getDate()}-${(fromDateObj.getMonth() + 1)}-${fromDateObj.getFullYear()}`;
+                                    const fromDateDisplay = fromDateObj.toLocaleDateString('en-GB');
+                                    const fromTimeDisplay = fromDateObj.toLocaleTimeString('en-US', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: true
+                                    });
                                     
                                     const toDateObj = new Date(row.To_Date);
-                                    const toDateDisplay = `${toDateObj.getDate()}-${(toDateObj.getMonth() + 1)}-${toDateObj.getFullYear()}`;
+                                    const toDateDisplay = toDateObj.toLocaleDateString('en-GB');
+                                    const toTimeDisplay = toDateObj.toLocaleTimeString('en-US', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: true
+                                    });
                                     
                                     const appliedDateObj = new Date(row.Applied_Date);
                                     const appliedDateDisplay = `${appliedDateObj.getDate()}-${(appliedDateObj.getMonth() + 1)}-${appliedDateObj.getFullYear()}`;
@@ -1072,10 +1180,10 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                             <td class="small-text">${index + 1}</td> 
                                             <td class="small-text">${row.Leave_Type_Name}</td>
                                             <td class="small-text" data-from-date="${row.From_Date}">
-                                                ${fromDateDisplay}
+                                                ${fromDateDisplay}<br><small>${fromTimeDisplay}</small>
                                             </td>
                                             <td class="small-text" data-to-date="${row.To_Date}">
-                                                ${toDateDisplay}
+                                                ${toDateDisplay}<br><small>${toTimeDisplay}</small>
                                             </td>
                                             <td class="small-text text-truncate" style="max-width: 150px;">
                                                 ${row.Reason}

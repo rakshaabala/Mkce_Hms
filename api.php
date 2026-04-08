@@ -4072,9 +4072,21 @@ if (!empty($action)) {
                     $chkLeave->execute();
                     $leaveResult = $chkLeave->get_result();
                     if ($leaveResult->num_rows === 0) {
-                        $insLeave = $conn->prepare("INSERT INTO leave_applications (Reg_No, LeaveType_ID, From_Date, To_Date, Reason, Status) VALUES (?, ?, ?, ?, ?, 'out')");
+                        $leaveCategory = '';
+                        $typeStmt = $conn->prepare("SELECT Leave_Type_Name FROM leave_types WHERE LeaveType_ID = ? LIMIT 1");
+                        if ($typeStmt) {
+                            $typeStmt->bind_param('i', $leave_type_id);
+                            $typeStmt->execute();
+                            $typeResult = $typeStmt->get_result();
+                            if ($typeRow = $typeResult->fetch_assoc()) {
+                                $leaveCategory = $typeRow['Leave_Type_Name'] ?? '';
+                            }
+                            $typeStmt->close();
+                        }
+
+                        $insLeave = $conn->prepare("INSERT INTO leave_applications (Reg_No, LeaveType_ID, category_of_leave, From_Date, To_Date, Reason, Status) VALUES (?, ?, ?, ?, ?, ?, 'out')");
                         if ($insLeave) {
-                            $insLeave->bind_param('sisss', $roll_number, $leave_type_id, $selectedDate, $selectedDate, $reason);
+                            $insLeave->bind_param('sissss', $roll_number, $leave_type_id, $leaveCategory, $selectedDate, $selectedDate, $reason);
                             $insLeave->execute();
                             $insLeave->close();
                         }
@@ -4946,11 +4958,12 @@ if (!empty($action)) {
             // Authenticate student
             $user_id = null;
             $roll_no = null;
+            $student_gender = '';
             if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'student') {
                 $user_id = $_SESSION['user_id'];
 
                 // Get roll number for authenticated users
-                $stmt = $conn->prepare("SELECT s.roll_number, s.user_id AS student_user_id, u.username FROM users u INNER JOIN students s ON s.user_id = u.user_id WHERE u.user_id = ? LIMIT 1");
+                $stmt = $conn->prepare("SELECT s.roll_number, s.gender, s.user_id AS student_user_id, u.username FROM users u INNER JOIN students s ON s.user_id = u.user_id WHERE u.user_id = ? LIMIT 1");
                 if ($stmt) {
                     $stmt->bind_param("i", $user_id);
                     $stmt->execute();
@@ -4960,6 +4973,7 @@ if (!empty($action)) {
 
                     if ($user) {
                         $roll_no = $user['roll_number'];
+                        $student_gender = strtolower(trim($user['gender'] ?? ''));
                     }
                 }
             }
@@ -5024,17 +5038,33 @@ if (!empty($action)) {
                 $errors[] = 'Invalid date or time format received.';
             }
 
-            if (empty($leave_id) && !empty($leave_type_id) && !empty($start_datetime_obj) && !empty($end_datetime_obj)) {
-                $stmt_check = $conn->prepare("SELECT Leave_Type_Name FROM leave_types WHERE LeaveType_ID = ?");
+            if (!empty($start_datetime_obj) && !empty($end_datetime_obj)) {
                 $type_name = '';
-                if ($stmt_check) {
-                    $stmt_check->bind_param("i", $leave_type_id);
-                    $stmt_check->execute();
-                    $result_check = $stmt_check->get_result();
-                    $leave_type_data = $result_check->fetch_assoc();
-                    $stmt_check->close();
-                    if ($leave_type_data) {
-                        $type_name = strtolower($leave_type_data['Leave_Type_Name']);
+
+                if (!empty($leave_id)) {
+                    $stmt_check = $conn->prepare("SELECT lt.Leave_Type_Name FROM leave_applications la INNER JOIN leave_types lt ON la.LeaveType_ID = lt.LeaveType_ID WHERE la.Leave_ID = ? AND la.Reg_No = ? LIMIT 1");
+                    if ($stmt_check) {
+                        $leave_id_int = (int) $leave_id;
+                        $stmt_check->bind_param("is", $leave_id_int, $roll_no);
+                        $stmt_check->execute();
+                        $result_check = $stmt_check->get_result();
+                        $leave_type_data = $result_check->fetch_assoc();
+                        $stmt_check->close();
+                        if ($leave_type_data) {
+                            $type_name = strtolower($leave_type_data['Leave_Type_Name']);
+                        }
+                    }
+                } elseif (!empty($leave_type_id)) {
+                    $stmt_check = $conn->prepare("SELECT Leave_Type_Name FROM leave_types WHERE LeaveType_ID = ?");
+                    if ($stmt_check) {
+                        $stmt_check->bind_param("i", $leave_type_id);
+                        $stmt_check->execute();
+                        $result_check = $stmt_check->get_result();
+                        $leave_type_data = $result_check->fetch_assoc();
+                        $stmt_check->close();
+                        if ($leave_type_data) {
+                            $type_name = strtolower($leave_type_data['Leave_Type_Name']);
+                        }
                     }
                 }
 
@@ -5051,6 +5081,26 @@ if (!empty($action)) {
                         } catch (Exception $e) {
                             $errors[] = 'Internal error with leave period dates.';
                         }
+                    }
+                }
+
+                if (str_contains($type_name, 'outing')) {
+                    if ($student_gender === 'female') {
+                        $errors[] = 'Outing leave is not available for girls.';
+                    }
+
+                    $today = new DateTime('today');
+                    $today_str = $today->format('Y-m-d');
+                    $from_date_only = $start_datetime_obj->format('Y-m-d');
+                    $to_date_only = $end_datetime_obj->format('Y-m-d');
+
+                    if ($from_date_only !== $today_str || $to_date_only !== $today_str) {
+                        $errors[] = 'Outing can be applied only for today.';
+                    }
+
+                    $fixed_outing_time = $today_str . ' 23:30:00';
+                    if ($end_datetime_obj->format('Y-m-d H:i:s') !== $fixed_outing_time) {
+                        $errors[] = 'For outing, return time must be exactly 11:30 PM.';
                     }
                 }
             }
@@ -5111,9 +5161,21 @@ if (!empty($action)) {
                     if (empty($leave_type_id)) {
                         $errors[] = "Leave type is required for a new application.";
                     } else {
-                        $stmt = $conn->prepare("INSERT INTO leave_applications (Reg_No, LeaveType_ID, From_Date, To_Date, Reason, Proof, Status, Applied_Date) VALUES (?, ?, ?, ?, ?, ?, 'Pending', NOW())");
+                        $category_of_leave = '';
+                        $typeStmt = $conn->prepare("SELECT Leave_Type_Name FROM leave_types WHERE LeaveType_ID = ? LIMIT 1");
+                        if ($typeStmt) {
+                            $typeStmt->bind_param('i', $leave_type_id);
+                            $typeStmt->execute();
+                            $typeResult = $typeStmt->get_result();
+                            if ($typeRow = $typeResult->fetch_assoc()) {
+                                $category_of_leave = $typeRow['Leave_Type_Name'] ?? '';
+                            }
+                            $typeStmt->close();
+                        }
+
+                        $stmt = $conn->prepare("INSERT INTO leave_applications (Reg_No, LeaveType_ID, category_of_leave, From_Date, To_Date, Reason, Proof, Status, Applied_Date) VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())");
                         if ($stmt) {
-                            $stmt->bind_param("sissss", $roll_no, $leave_type_id, $start_datetime, $end_datetime, $reason, $proof_file);
+                            $stmt->bind_param("sisssss", $roll_no, $leave_type_id, $category_of_leave, $start_datetime, $end_datetime, $reason, $proof_file);
                             if ($stmt->execute()) {
                                 echo json_encode(['success' => true, 'message' => 'Leave application submitted successfully!']);
                             } else {
@@ -5203,11 +5265,12 @@ if (!empty($action)) {
             // Authenticate student
             $user_id = null;
             $roll_no = null;
+            $student_gender = '';
             if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'student') {
                 $user_id = $_SESSION['user_id'];
 
                 // Get roll number for authenticated users
-                $stmt = $conn->prepare("SELECT s.roll_number, s.user_id AS student_user_id, u.username FROM users u LEFT JOIN students s ON s.user_id = u.user_id WHERE u.user_id = ? LIMIT 1");
+                $stmt = $conn->prepare("SELECT s.roll_number, s.gender, s.user_id AS student_user_id, u.username FROM users u LEFT JOIN students s ON s.user_id = u.user_id WHERE u.user_id = ? LIMIT 1");
                 if ($stmt) {
                     $stmt->bind_param("i", $user_id);
                     $stmt->execute();
@@ -5217,6 +5280,7 @@ if (!empty($action)) {
 
                     if ($user) {
                         $roll_no = !empty($user['roll_number']) ? $user['roll_number'] : $user['username'];
+                        $student_gender = strtolower(trim($user['gender'] ?? ''));
                     }
                 }
             }
@@ -5239,9 +5303,9 @@ if (!empty($action)) {
                 $stmt_gl->close();
             }
 
-            $rows = [];
-            $sql = "SELECT la.Leave_ID, la.From_Date, la.To_Date, la.Reason, la.Proof, la.Status, la.Applied_Date, 
-                           lt.Leave_Type_Name, la.LeaveType_ID
+                 $rows = [];
+                 $sql = "SELECT la.Leave_ID, la.From_Date, la.To_Date, la.Reason, la.Proof, la.Status, la.Applied_Date, 
+                          lt.Leave_Type_Name, la.LeaveType_ID, la.category_of_leave
                     FROM leave_applications la
                     LEFT JOIN leave_types lt ON la.LeaveType_ID = lt.LeaveType_ID
                     WHERE la.Reg_No = ?
@@ -5259,7 +5323,11 @@ if (!empty($action)) {
 
                 // Fetch leave types
                 $leave_types = [];
-                $stmt_lt = $conn->prepare("SELECT LeaveType_ID, Leave_Type_Name FROM leave_types ORDER BY Priority ASC, Leave_Type_Name ASC");
+                if ($student_gender === 'female') {
+                    $stmt_lt = $conn->prepare("SELECT LeaveType_ID, Leave_Type_Name FROM leave_types WHERE LOWER(Leave_Type_Name) NOT LIKE '%outing%' ORDER BY Priority ASC, Leave_Type_Name ASC");
+                } else {
+                    $stmt_lt = $conn->prepare("SELECT LeaveType_ID, Leave_Type_Name FROM leave_types ORDER BY Priority ASC, Leave_Type_Name ASC");
+                }
                 if ($stmt_lt) {
                     $stmt_lt->execute();
                     $lt_res = $stmt_lt->get_result();
