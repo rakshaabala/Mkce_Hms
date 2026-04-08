@@ -807,10 +807,12 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                     const allowedMinDateStr = fromDate.toISOString().split('T')[0];
                                     const allowedMaxDateStr = toDate.toISOString().split('T')[0];
 
-                                    // Set min date to TODAY (or the allowed start date, whichever is later)
+                                    // Set min date to TOMORROW (or the allowed start date, whichever is later)
                                     const today = new Date();
                                     today.setHours(0, 0, 0, 0);
-                                    const minDateEffective = fromDate > today ? fromDate : today;
+                                    const tomorrow = new Date(today);
+                                    tomorrow.setDate(tomorrow.getDate() + 1);
+                                    const minDateEffective = fromDate > tomorrow ? fromDate : tomorrow;
                                     
                                     $('#from_date').attr('min', minDateEffective.toISOString().split('T')[0]);
                                     $('#to_date').attr('max', allowedMaxDateStr);
