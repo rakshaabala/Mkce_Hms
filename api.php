@@ -5864,17 +5864,16 @@ if (!empty($action)) {
             if (empty($errors)) {
                 if (!empty($leave_id)) {
                     // Build UPDATE query dynamically
-                    $sql_parts = ["UPDATE leave_applications SET From_Date=?, To_Date=?, Reason=?"];
+                    $sql = "UPDATE leave_applications SET From_Date=?, To_Date=?, Reason=?";
                     $params = [$start_datetime, $end_datetime, $reason];
                     $types = "sss";
 
                     if ($proof_file !== '') {
-                        $sql_parts[] = "Proof=?";
+                        $sql .= ", Proof=?";
                         $types .= "s";
                         $params[] = $proof_file;
                     }
 
-                    $sql = implode(', ', $sql_parts);
                     $sql .= " WHERE Leave_ID=? AND Reg_No=? AND Status='Pending'";
                     // Leave_ID is integer, Reg_No is string
                     $types .= "is";
