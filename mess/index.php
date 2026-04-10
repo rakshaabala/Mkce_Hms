@@ -1028,6 +1028,8 @@
                                             <th>To Date</th>
                                             <th>To Time</th>
                                             <th>Token Date</th>
+                                            <th>Max Usage</th>
+                                            <th>Free Limit</th>
                                             <th>Meal Type</th>
                                             <th>Items</th>
                                             <th>Fee</th>
@@ -1831,6 +1833,7 @@ if (maxUsage === -1) {
                 <button class="btn btn-danger btn-sm" onclick="endToken(${token.menu_id})">
                     <i class="fas fa-stop"></i>
                 </button>`;
+        
 
         tbody.append(`
             <tr>
@@ -1841,6 +1844,8 @@ if (maxUsage === -1) {
                 <td>${token.to_date}</td>
                 <td>${token.to_time.substring(0,5)}</td>
                 <td>${token.token_date}</td>
+                <td>${token.max_usage == -1 ? 'Unlimited' : `Limited (${token.max_usage})`}</td>
+                <td>${token.free_limit || 0}</td>
                 <td>${token.meal_type}</td>
                 <td>${token.menu_items}</td>
                 <td>₹${parseFloat(token.fee).toFixed(2)}</td>
