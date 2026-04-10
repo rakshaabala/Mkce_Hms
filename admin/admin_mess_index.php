@@ -5,10 +5,6 @@ if (!is_any_admin_role()) {
     header('Location: ../login');
     exit;
 }
-
-// Reuse the full mess supervisor UI for all admin roles.
-header('Location: ../mess/index.php');
-exit;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -883,7 +879,7 @@ exit;
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="#">Home</a></li>
-                    <li class="breadcrumb-item active">Mess Supervision</li>
+                    <li class="breadcrumb-item active">Mess Menu</li>
                 </ol>
             </nav>
         </div>
@@ -916,38 +912,50 @@ exit;
                     </div>
                 </div>
             </div>
+
             <div class="custom-tabs">
                 <ul class="nav nav-tabs" role="tablist">
-                    <li class="nav-item">
-                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#menu" type="button">
-                            <i class="fas fa-utensils"></i> Mess Menu
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#menu" type="button" role="tab">
+                            <i class="fas fa-utensils"></i> Menu
                         </button>
                     </li>
-                    <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#special" type="button">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#specialtokens" type="button" role="tab">
                             <i class="fas fa-star"></i> Special Tokens
                         </button>
                     </li>
-                    <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#requests" type="button">
-                            <i class="fas fa-list"></i> Token Requests
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tokens" type="button" role="tab">
+                            <i class="fas fa-ticket-alt"></i> Token Requests
                         </button>
                     </li>
-                    <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#revenue" type="button">
-                            <i class="fas fa-chart-line"></i> Revenue
-                        </button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#consumption" type="button">
-                            <i class="fas fa-chart-bar"></i> Consumption
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+                            <i class="fas fa-history"></i> History
                         </button>
                     </li>
                 </ul>
+
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="menu" role="tabpanel">
-                        <h5 class="mb-3"><i class="fas fa-utensils"></i> Daily Menu </h5>
-
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="fas fa-utensils"></i> Menu Management</h5>
+                            <div class="btn">
+                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#breakfastModal">
+                                    <i class="fas fa-plus"></i> Breakfast
+                                </button>
+                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#lunchModal">
+                                    <i class="fas fa-plus"></i> Lunch
+                                </button>
+                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#snacksModal">
+                                    <i class="fas fa-plus"></i> Snacks
+                                </button>
+                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#dinnerModal">
+                                    <i class="fas fa-plus"></i> Dinner
+                                </button>
+                            </div>
+                        </div>
                         <div class="filter-section">
                             <div class="row align-items-end">
                                 <div class="col-md-6">
@@ -961,27 +969,35 @@ exit;
                         </div>
                         <div class="loading" id="menuLoading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                         <div class="table-responsive">
-                            <table id="menuTable" class="table table-bordered table-hover">
+                            <table id="messMenuTable" class="table table-bordered table-hover">
                                 <thead>
                                     <tr>
+                                        <th>S.No</th>
                                         <th>Date</th>
                                         <th>Meal Type</th>
                                         <th>Items</th>
-                                        <th>Fee (₹)</th>
+                                        <th>Category</th>
+                                        <th>Fee</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="special" role="tabpanel">
-                        <h5 class="mb-3"><i class="fas fa-star"></i> Special Meal Tokens</h5>
-                        <div class="loading" id="specialLoading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+
+                    <div class="tab-pane fade" id="specialtokens" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="fas fa-star"></i> Special Tokens Management</h5>
+                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#specialtokenModal">
+                                Enable Special Token
+                            </button>
+                        </div>
                         <div class="table-responsive">
                             <table id="specialTable" class="table table-bordered table-hover">
                                 <thead>
                                     <tr>
-                                        <th>S.NO</th>
+                                        <th>S.No</th>
                                         <th>Meal Type</th>
                                         <th>Items</th>
                                         <th>From</th>
@@ -996,41 +1012,39 @@ exit;
                             </table>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="requests" role="tabpanel">
+
+                    <div class="tab-pane fade" id="tokens" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5><i class="fas fa-list"></i> Student Token Requests</h5>
+                            <h5><i class="fas fa-ticket-alt"></i> Token Requests</h5>
                             <button class="btn btn-success" onclick="exportTokenRequests()"><i class="fas fa-file-pdf"></i> Export PDF</button>
                         </div>
 
-                        <!-- Filter Section -->
-                        <div class="filter-section mb-3">
-                            <div class="row align-items-end">
-                                <div class="col-md-2">
-                                    <label class="form-label"><strong>Filter by Month:</strong></label>
-                                    <input type="month" id="requestsFilterMonth" class="form-control" value="<?php echo date('Y-m'); ?>">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label"><strong>Filter by Date:</strong></label>
-                                    <input type="date" id="requestsFilterDate" class="form-control">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label"><strong>Filter by Meal Type:</strong></label>
-                                    <select id="requestsFilterMealType" class="form-control">
-                                        <option value="">All Meal Types</option>
-                                        <option value="Breakfast">Breakfast</option>
-                                        <option value="Lunch">Lunch</option>
-                                        <option value="Snacks">Snacks</option>
-                                        <option value="Dinner">Dinner</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label"><strong>Search Menu Items:</strong></label>
-                                    <input type="text" id="requestsFilterItem" class="form-control" placeholder="Type item name (e.g., Rice, Chicken)">
-                                </div>
-                                <div class="col-md-3">
-                                    <button class="btn btn-primary" onclick="loadRequests()"><i class="fas fa-filter"></i> Apply Filter</button>
-                                    <button class="btn btn-secondary" onclick="resetRequestsFilter()"><i class="fas fa-undo"></i> Reset</button>
-                                </div>
+                        <div class="row mb-3 g-2">
+                            <div class="col-md-2">
+                                <label class="form-label"><strong>Filter by Month:</strong></label>
+                                <input type="month" id="requestsFilterMonth" class="form-control" value="<?php echo date('Y-m'); ?>">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label"><strong>Filter by Date:</strong></label>
+                                <input type="date" id="requestsFilterDate" class="form-control">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label"><strong>Filter by Meal Type:</strong></label>
+                                <select id="requestsFilterMealType" class="form-control">
+                                    <option value="">All Meal Types</option>
+                                    <option value="Breakfast">Breakfast</option>
+                                    <option value="Lunch">Lunch</option>
+                                    <option value="Snacks">Snacks</option>
+                                    <option value="Dinner">Dinner</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label"><strong>Search Menu Items:</strong></label>
+                                <input type="text" id="requestsFilterItem" class="form-control" placeholder="Type item name (e.g., Rice, Chicken)">
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button class="btn btn-primary me-2" onclick="loadRequests()"><i class="fas fa-filter"></i> Apply Filter</button>
+                                <button class="btn btn-secondary" onclick="resetRequestsFilter()"><i class="fas fa-undo"></i> Reset</button>
                             </div>
                         </div>
 
@@ -1053,72 +1067,107 @@ exit;
                             </table>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="revenue" role="tabpanel">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5><i class="fas fa-chart-line"></i> Revenue</h5>
-                            <button class="btn btn-success" onclick="exportRevenue()"><i class="fas fa-file-pdf"></i> Export PDF</button>
-                        </div>
 
-                        <div class="filter-section">
-                            <div class="row align-items-end">
-                                <div class="col-md-6">
-                                    <label class="form-label"><strong>Select Month:</strong></label>
-                                    <input type="month" id="revenueMonth" class="form-control" value="<?php echo date('Y-m'); ?>">
-                                </div>
-                                <div class="col-md-6">
-                                    <button class="btn btn-primary" onclick="loadRevenue()"><i class="fas fa-search"></i> View Revenue</button>
-                                </div>
+                    <div class="tab-pane fade" id="history" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="fas fa-history"></i> Activity History</h5>
+                            <div class="btn">
+                                <button type="button" class="btn btn-secondary" onclick="viewHistory('menu')">Menu History</button>
+                                <button type="button" class="btn btn-secondary" onclick="viewHistory('special')">Special Token History</button>
                             </div>
                         </div>
-                        <div class="loading" id="revenueLoading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                         <div class="table-responsive">
-                            <table id="revenueTable" class="table table-bordered table-hover">
+                            <table id="historyTable" class="table table-bordered table-hover">
                                 <thead>
                                     <tr>
+                                        <th>Type</th>
                                         <th>Date</th>
-                                        <th>Tokens Count</th>
-                                        <th>Revenue (₹)</th>
+                                        <th>Details</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Created At</th>
                                     </tr>
                                 </thead>
-                                <tbody></tbody>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="6" class="text-center">Click a filter button to view history</td>
+                                    </tr>
+                                </tbody>
                             </table>
-                        </div>
-                        <div class="info-box mt-3">
-                            <h5>Total Monthly Revenue: <span id="totalRevenue" style="color: #4CAF50; font-weight: bold; font-size: 1.5rem;">₹0.00</span></h5>
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="consumption" role="tabpanel">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5><i class="fas fa-chart-bar"></i> Consumption</h5>
-                            <button class="btn btn-success" onclick="exportConsumption()"><i class="fas fa-file-pdf"></i> Export PDF</button>
-                        </div>
+                </div>
+            </div>
+        </div>
 
-                        <div class="filter-section">
-                            <div class="row align-items-end">
-                                <div class="col-md-6">
-                                    <label class="form-label"><strong>Select Month:</strong></label>
-                                    <input type="month" id="consumptionMonth" class="form-control" value="<?php echo date('Y-m'); ?>">
+        <!-- Special Token Modal -->
+        <div class="modal fade" id="specialtokenModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #4e73df, #2e59d9); color: white;">
+                        <h5 class="modal-title">Enable Special Token</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Token Type</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tokenType" id="limitedToken" value="limited" checked>
+                                    <label class="form-check-label" for="limitedToken">Limited</label>
                                 </div>
-                                <div class="col-md-6">
-                                    <button class="btn btn-primary" onclick="loadConsumption()"><i class="fas fa-search"></i> View Consumption</button>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tokenType" id="unlimitedToken" value="unlimited">
+                                    <label class="form-check-label" for="unlimitedToken">Unlimited</label>
                                 </div>
                             </div>
                         </div>
-                        <div class="loading" id="consumptionLoading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
-                        <div class="table-responsive">
-                            <table id="consumptionTable" class="table table-bordered table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>S.NO</th>
-                                        <th>Roll No.</th>
-                                        <th>Name</th>
-                                        <th>Tokens</th>
-                                        <th>Total Spent (₹)</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
+                        <div class="mb-3" id="limitInputContainer">
+                            <label class="form-label">Number of Tokens</label>
+                            <input type="number" id="tokenLimit" class="form-control" min="1" value="1">
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">From Date</label>
+                            <input type="date" id="tokenfromDate" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">From Time</label>
+                            <input type="time" id="tokenfromTime" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">To Date</label>
+                            <input type="date" id="tokentoDate" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">To Time</label>
+                            <input type="time" id="tokentoTime" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Token Date</label>
+                            <input type="date" id="tokenDate" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Meal Type</label>
+                            <select id="specialMealType" class="form-control" required>
+                                <option value="">Select Meal Type</option>
+                                <option value="Breakfast">Breakfast</option>
+                                <option value="Lunch">Lunch</option>
+                                <option value="Snacks">Snacks</option>
+                                <option value="Dinner">Dinner</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Menu Items</label>
+                            <textarea id="specialMenuItems" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Fee (₹)</label>
+                            <input type="number" id="specialtokenFee" class="form-control" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="saveSpecialToken()">Save</button>
                     </div>
                 </div>
             </div>
@@ -1126,23 +1175,47 @@ exit;
         <?php include '../assets/footer.php'; ?>
     </div>
     <script>
-        let tables = {};
+        let tables = {
+            menu: null,
+            special: null,
+            requests: null,
+            history: null
+        };
+
+        let historyTable = null;
+
         $(document).ready(function() {
             loadDashboard();
             loadMenu();
+            setInterval(loadMenu, 30000);
             loadSpecialTokens();
             loadRequests();
-            loadRevenue();
-            loadConsumption();
             setInterval(loadDashboard, 30000);
-            // Refresh special tokens periodically so supervisor view updates
             setInterval(loadSpecialTokens, 30000);
+            setInterval(loadRequests, 30000);
 
-            // Add Enter key listener for item filter
+            $('#requestsFilterMonth').val('<?php echo date('Y-m'); ?>');
+
             $('#requestsFilterItem').on('keypress', function(e) {
-                if (e.which === 13) { // Enter key
+                if (e.which === 13) {
                     e.preventDefault();
                     loadRequests();
+                }
+            });
+
+            $('input[name="tokenType"]').on('change', function() {
+                if ($(this).val() === 'limited') {
+                    $('#limitInputContainer').show();
+                } else {
+                    $('#limitInputContainer').hide();
+                }
+            });
+
+            $('input[name="editTokenType"]').on('change', function() {
+                if ($(this).val() === 'limited') {
+                    $('#editLimitInputContainer').show();
+                } else {
+                    $('#editLimitInputContainer').hide();
                 }
             });
         });
@@ -1325,6 +1398,42 @@ exit;
             });
         }
 
+        function saveSpecialToken() {
+            const tokenType = $('input[name="tokenType"]:checked').val();
+            const maxUsage = tokenType === 'unlimited' ? -1 : parseInt($('#tokenLimit').val() || '1', 10);
+            const payload = {
+                action: 'create_special_token',
+                from_date: $('#tokenfromDate').val(),
+                from_time: $('#tokenfromTime').val(),
+                to_date: $('#tokentoDate').val(),
+                to_time: $('#tokentoTime').val(),
+                token_date: $('#tokenDate').val(),
+                meal_type: $('#specialMealType').val(),
+                menu_items: $('#specialMenuItems').val(),
+                fee: $('#specialtokenFee').val(),
+                max_usage: maxUsage
+            };
+
+            if (!payload.from_date || !payload.from_time || !payload.to_date || !payload.to_time || !payload.token_date || !payload.meal_type || !payload.menu_items || !payload.fee) {
+                Swal.fire('Error', 'Please fill all required fields', 'error');
+                return;
+            }
+
+            $.post('../api.php', payload, function(response) {
+                if (response && response.success) {
+                    Swal.fire('Success', response.message || 'Special token created', 'success');
+                    $('#specialtokenModal').modal('hide');
+                    $('#specialtokenModal input, #specialtokenModal textarea').not('[type=radio]').val('');
+                    $('#limitedToken').prop('checked', true);
+                    $('#limitInputContainer').show();
+                    loadSpecialTokens();
+                    loadDashboard();
+                } else {
+                    Swal.fire('Error', response.message || 'Failed to create special token', 'error');
+                }
+            }, 'json');
+        }
+
         function resetRequestsFilter() {
             $('#requestsFilterMonth').val('<?php echo date('Y-m'); ?>');
             $('#requestsFilterDate').val('');
@@ -1376,6 +1485,37 @@ exit;
                 paging: true,
                 pageLength: 10
             });
+        }
+
+        function viewHistory(type) {
+            const action = type === 'menu' ? 'get_menu_history' : 'get_special_token_history';
+            $.post('../api.php', {
+                action: action
+            }, function(response) {
+                if (historyTable) {
+                    historyTable.destroy();
+                    historyTable = null;
+                }
+
+                const tableBody = $('#historyTable tbody');
+                tableBody.empty();
+
+                if (!response || !response.success || !Array.isArray(response.data) || response.data.length === 0) {
+                    tableBody.html('<tr><td colspan="6" class="text-center">No history found</td></tr>');
+                    return;
+                }
+
+                response.data.forEach(function(item) {
+                    tableBody.append(`<tr><td>${item.type || 'N/A'}</td><td>${item.date || 'N/A'}</td><td>${item.details || 'N/A'}</td><td>${item.description || 'N/A'}</td><td>₹${parseFloat(item.amount || 0).toFixed(2)}</td><td>${item.timestamp || 'N/A'}</td></tr>`);
+                });
+
+                historyTable = $('#historyTable').DataTable({
+                    paging: true,
+                    pageLength: 10,
+                    searching: true,
+                    ordering: true
+                });
+            }, 'json');
         }
 
         function loadRevenue() {
