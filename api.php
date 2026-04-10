@@ -4226,6 +4226,185 @@ if (!empty($action)) {
             }
             break;
 
+        case 'add_restriction':
+            require_any_admin_api_role();
+            
+            $roll_number = sanitize_input($_POST['roll_number'] ?? '');
+            $restriction_type = sanitize_input($_POST['restriction_type'] ?? '');
+            
+            if (empty($roll_number) || empty($restriction_type)) {
+                echo json_encode(['success' => false, 'message' => 'Roll number and restriction type are required']);
+                break;
+            }
+            
+            if (!in_array($restriction_type, ['leave', 'outing'], true)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid restriction type. Must be "leave" or "outing"']);
+                break;
+            }
+            
+            // Check student exists
+            $stmt = $conn->prepare("SELECT student_id FROM students WHERE roll_number = ? LIMIT 1");
+            if (!$stmt) {
+                echo json_encode(['success' => false, 'message' => 'Database error']);
+                break;
+            }
+            $stmt->bind_param("s", $roll_number);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows === 0) {
+                echo json_encode(['success' => false, 'message' => 'Student not found']);
+                $stmt->close();
+                break;
+            }
+            
+            $student = $result->fetch_assoc();
+            $student_id = $student['student_id'];
+            $stmt->close();
+            
+            // Check if restriction already exists and not removed
+            $stmt = $conn->prepare("SELECT restriction_id FROM student_restrictions WHERE roll_number = ? AND restriction_type = ? AND removed_at IS NULL LIMIT 1");
+            if (!$stmt) {
+                echo json_encode(['success' => false, 'message' => 'Database error']);
+                break;
+            }
+            $stmt->bind_param("ss", $roll_number, $restriction_type);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows > 0) {
+                echo json_encode(['success' => false, 'message' => 'Student already has this restriction']);
+                $stmt->close();
+                break;
+            }
+            $stmt->close();
+            
+            // Add restriction
+            $created_by = get_current_session_role();
+            $stmt = $conn->prepare("INSERT INTO student_restrictions (student_id, roll_number, restriction_type, created_by) VALUES (?, ?, ?, ?)");
+            if (!$stmt) {
+                echo json_encode(['success' => false, 'message' => 'Database error']);
+                break;
+            }
+            $stmt->bind_param("isss", $student_id, $roll_number, $restriction_type, $created_by);
+            
+            if ($stmt->execute()) {
+                echo json_encode(['success' => true, 'message' => 'Restriction added successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to add restriction']);
+            }
+            $stmt->close();
+            break;
+
+        case 'remove_restriction':
+            require_any_admin_api_role();
+            
+            $restriction_id = filter_var($_POST['restriction_id'] ?? 0, FILTER_VALIDATE_INT);
+            
+            if ($restriction_id <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Invalid restriction ID']);
+                break;
+            }
+            
+            // Check restriction exists
+            $stmt = $conn->prepare("SELECT restriction_id FROM student_restrictions WHERE restriction_id = ? AND removed_at IS NULL LIMIT 1");
+            if (!$stmt) {
+                echo json_encode(['success' => false, 'message' => 'Database error']);
+                break;
+            }
+            $stmt->bind_param("i", $restriction_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result->num_rows === 0) {
+                echo json_encode(['success' => false, 'message' => 'Restriction not found']);
+                $stmt->close();
+                break;
+            }
+            $stmt->close();
+            
+            // Remove restriction
+            $stmt = $conn->prepare("UPDATE student_restrictions SET removed_at = NOW() WHERE restriction_id = ?");
+            if (!$stmt) {
+                echo json_encode(['success' => false, 'message' => 'Database error']);
+                break;
+            }
+            $stmt->bind_param("i", $restriction_id);
+            
+            if ($stmt->execute()) {
+                echo json_encode(['success' => true, 'message' => 'Restriction removed successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to remove restriction']);
+            }
+            $stmt->close();
+            break;
+
+        case 'fetch_restrictions':
+            require_any_admin_api_role();
+            
+            $filter_type = sanitize_input($_POST['filter_type'] ?? $_GET['filter_type'] ?? '');
+            $search_roll = sanitize_input($_POST['search_roll'] ?? $_GET['search_roll'] ?? '');
+            
+            // Build query
+            $sql = "SELECT 
+                        sr.restriction_id, 
+                        sr.student_id,
+                        sr.roll_number,
+                        sr.restriction_type,
+                        sr.created_by,
+                        sr.created_at,
+                        s.name,
+                        s.gender
+                    FROM student_restrictions sr
+                    LEFT JOIN students s ON sr.student_id = s.student_id
+                    WHERE sr.removed_at IS NULL";
+            
+            $params = [];
+            $types = "";
+            
+            if (!empty($filter_type)) {
+                $sql .= " AND sr.restriction_type = ?";
+                $params[] = $filter_type;
+                $types .= "s";
+            }
+            
+            if (!empty($search_roll)) {
+                $sql .= " AND sr.roll_number LIKE ?";
+                $search_roll = "%{$search_roll}%";
+                $params[] = $search_roll;
+                $types .= "s";
+            }
+            
+            $sql .= " ORDER BY sr.created_at DESC";
+            
+            $stmt = $conn->prepare($sql);
+            if (!$stmt) {
+                echo json_encode(['success' => false, 'message' => 'Database error']);
+                break;
+            }
+            
+            if (!empty($params)) {
+                $bind_names = [$types];
+                for ($i = 0; $i < count($params); $i++) {
+                    $bind_var_name = 'param_' . $i;
+                    $$bind_var_name = $params[$i];
+                    $bind_names[] = &$$bind_var_name;
+                }
+                call_user_func_array([$stmt, 'bind_param'], $bind_names);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $restrictions = [];
+            while ($row = $result->fetch_assoc()) {
+                $restrictions[] = $row;
+            }
+            $stmt->close();
+            
+            echo json_encode(['success' => true, 'restrictions' => $restrictions]);
+            break;
+
         case 'load_late_attendance':
             $hostel_filter = trim($_POST['hostel_filter'] ?? $_GET['hostel_filter'] ?? '');
             $sql = "
@@ -5671,18 +5850,43 @@ if (!empty($action)) {
                     if (empty($leave_type_id)) {
                         $errors[] = "Leave type is required for a new application.";
                     } else {
-                        $stmt = $conn->prepare("INSERT INTO leave_applications (Reg_No, LeaveType_ID, From_Date, To_Date, Reason, Proof, Status, Applied_Date) VALUES (?, ?, ?, ?, ?, ?, 'Pending', NOW())");
-                        if ($stmt) {
-                            // Correct types: Reg_No (string), LeaveType_ID (integer), rest strings
-                            $stmt->bind_param("sissss", $roll_no, $leave_type_id, $start_datetime, $end_datetime, $reason, $proof_file);
-                            if ($stmt->execute()) {
-                                echo json_encode(['success' => true, 'message' => 'Leave application submitted successfully!']);
-                            } else {
-                                $errors[] = "Failed to apply for leave: " . $stmt->error;
+                        // Check if student has restrictions for this leave type
+                        $restriction_type = '';
+                        if (!empty($type_name)) {
+                            if (str_contains($type_name, 'outing')) {
+                                $restriction_type = 'outing';
+                            } elseif (str_contains($type_name, 'leave') || str_contains($type_name, 'Leave')) {
+                                $restriction_type = 'leave';
                             }
-                            $stmt->close();
-                        } else {
-                            $errors[] = "Database error: " . $conn->error;
+                        }
+
+                        if (!empty($restriction_type)) {
+                            $stmt_restrict = $conn->prepare("SELECT restriction_id FROM student_restrictions WHERE roll_number = ? AND restriction_type = ? AND removed_at IS NULL LIMIT 1");
+                            if ($stmt_restrict) {
+                                $stmt_restrict->bind_param("ss", $roll_no, $restriction_type);
+                                $stmt_restrict->execute();
+                                $restrict_result = $stmt_restrict->get_result();
+                                if ($restrict_result->num_rows > 0) {
+                                    $errors[] = "You are restricted from applying for " . ucfirst($restriction_type) . " by admin.";
+                                }
+                                $stmt_restrict->close();
+                            }
+                        }
+
+                        if (empty($errors)) {
+                            $stmt = $conn->prepare("INSERT INTO leave_applications (Reg_No, LeaveType_ID, From_Date, To_Date, Reason, Proof, Status, Applied_Date) VALUES (?, ?, ?, ?, ?, ?, 'Pending', NOW())");
+                            if ($stmt) {
+                                // Correct types: Reg_No (string), LeaveType_ID (integer), rest strings
+                                $stmt->bind_param("sissss", $roll_no, $leave_type_id, $start_datetime, $end_datetime, $reason, $proof_file);
+                                if ($stmt->execute()) {
+                                    echo json_encode(['success' => true, 'message' => 'Leave application submitted successfully!']);
+                                } else {
+                                    $errors[] = "Failed to apply for leave: " . $stmt->error;
+                                }
+                                $stmt->close();
+                            } else {
+                                $errors[] = "Database error: " . $conn->error;
+                            }
                         }
                     }
                 }
