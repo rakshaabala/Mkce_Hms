@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 02, 2026 at 06:19 AM
+-- Generation Time: Apr 10, 2026 at 12:11 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.1.25
 
@@ -53,12 +53,20 @@ CREATE TABLE `attendance` (
   `student_id` int(11) NOT NULL,
   `roll_number` varchar(50) NOT NULL,
   `date` date NOT NULL,
-  `status` enum('Present','Absent') DEFAULT 'Absent',
+  `status` enum('Present','Absent','Late Entry','On Leave') DEFAULT 'Absent',
   `marked_by` int(11) DEFAULT NULL,
   `marked_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `academic_year` varchar(20) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `reason` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `attendance`
+--
+
+INSERT INTO `attendance` (`attendance_id`, `student_id`, `roll_number`, `date`, `status`, `marked_by`, `marked_at`, `academic_year`, `created_at`, `reason`) VALUES
+(29, 25, '927623BCB014', '2026-04-10', 'Present', NULL, '2026-04-10 07:01:06', NULL, '2026-04-10 07:01:06', 'marudhani');
 
 -- --------------------------------------------------------
 
@@ -82,7 +90,7 @@ CREATE TABLE `attendance_time_control` (
 --
 
 INSERT INTO `attendance_time_control` (`id`, `year`, `from_time`, `to_time`, `late_entry_time`, `enabled_by`, `status`, `created_at`) VALUES
-(25, '', '09:00:00', '10:00:00', '11:00:00', 'Admin', 'enabled', '2026-02-16 04:22:00');
+(25, '', '09:00:00', '10:00:00', '11:00:00', 'Admin', 'disabled', '2026-02-16 04:22:00');
 
 -- --------------------------------------------------------
 
@@ -126,6 +134,14 @@ CREATE TABLE `blocked_students` (
   `blocked_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `unblocked_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `blocked_students`
+--
+
+INSERT INTO `blocked_students` (`id`, `student_id`, `attendance_id`, `type`, `created_at`, `reason`, `blocked_at`, `unblocked_at`) VALUES
+(23, 16, NULL, 'Both', '2026-04-10 08:30:28', 'asdfghjkl', '2026-04-10 08:30:28', '2026-04-10 10:02:05'),
+(24, 17, NULL, 'Both', '2026-04-10 09:53:05', 'late attendance', '2026-04-10 09:53:05', NULL);
 
 -- --------------------------------------------------------
 
@@ -230,7 +246,9 @@ CREATE TABLE `general_leave` (
 INSERT INTO `general_leave` (`GeneralLeave_ID`, `Leave_Name`, `Created_Date`, `From_Date`, `To_Date`, `Enabled_By`, `Instructions`, `Is_Enabled`) VALUES
 (1, 'Diwali leave', '2025-11-24 04:22:31', '2025-11-25 07:00:00', '2025-11-30 08:52:00', '', '', 0),
 (2, 'Pongal Holiday', '2026-01-28 07:13:35', '2026-01-28 18:00:00', '2026-02-08 08:45:00', '', 'Happy Pongal', 0),
-(3, 'General Leave', '2026-02-16 04:07:36', '2026-02-20 09:36:00', '2026-02-20 21:36:00', '', '', 1);
+(3, 'General Leave', '2026-02-16 04:07:36', '2026-02-20 09:36:00', '2026-02-20 21:36:00', '', '', 0),
+(5, 'General Leave', '2026-04-10 07:18:43', '2026-04-10 17:48:00', '2026-04-13 18:48:00', 'female_admin', '', 1),
+(6, 'Diwali leave', '2026-04-10 07:24:33', '2026-04-10 18:54:00', '2026-04-13 06:54:00', 'male_admin', '', 1);
 
 -- --------------------------------------------------------
 
@@ -287,7 +305,13 @@ INSERT INTO `guardians` (`guardian_id`, `student_id`, `relation`, `name`, `phone
 (66, 24, 'guardian', NULL, NULL, NULL, 'none', '2026-02-16 04:28:45', '2026-02-16 04:28:45'),
 (67, 25, 'father', 'Kandhasamy A', '9345746571', NULL, 'primary', '2026-02-16 04:31:00', '2026-02-16 04:31:00'),
 (68, 25, 'mother', 'RajaLakshmi K', '93213678761', NULL, 'alternate', '2026-02-16 04:31:00', '2026-02-16 04:31:00'),
-(69, 25, 'guardian', 'Keerthana', '9315832690', NULL, 'none', '2026-02-16 04:31:00', '2026-02-16 04:31:00');
+(69, 25, 'guardian', 'Keerthana', '9315832690', NULL, 'none', '2026-02-16 04:31:00', '2026-02-16 04:31:00'),
+(70, 26, 'father', 'suresh', '9600796697', NULL, 'primary', '2026-04-02 04:37:02', '2026-04-02 04:37:02'),
+(71, 26, 'mother', 'ramya', '9944802264', NULL, 'alternate', '2026-04-02 04:37:02', '2026-04-02 04:37:02'),
+(72, 26, 'guardian', 'nil', 'NIL', NULL, 'none', '2026-04-02 04:37:02', '2026-04-02 04:37:02'),
+(73, 27, 'father', 'PALANIVEL S', '9600796697', NULL, 'primary', '2026-04-02 04:58:01', '2026-04-02 04:58:01'),
+(74, 27, 'mother', 'MAHESWARI', '9944802264', NULL, 'alternate', '2026-04-02 04:58:01', '2026-04-02 04:58:01'),
+(75, 27, 'guardian', 'nil', 'nil', NULL, 'none', '2026-04-02 04:58:01', '2026-04-02 04:58:01');
 
 -- --------------------------------------------------------
 
@@ -385,7 +409,8 @@ CREATE TABLE `ivr_calls` (
 INSERT INTO `ivr_calls` (`id`, `leave_id`, `contact_number`, `unique_id`, `system_api_uniqueid`, `call_status`, `dtmf`, `duration`, `time_start`, `time_connect`, `time_end`, `retry_count`, `raw_trigger_response`, `raw_report_response`, `created_at`, `updated_at`) VALUES
 (13, 31, '9342603366', '2410825_1_3049-u6824', '2410825_1', 'answered', '', 12, '2026-02-16 09:52:56', '2026-02-16 09:53:05', '2026-02-16 09:53:23', 0, '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Call Submitted Successfully\",\"data\":[{\"contact_number\":\"9342603366\",\"unique_id\":\"2410825_1_3049-u6824\",\"system_api_uniqueid\":\"2410825_1\"}]}', '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Request Submitted Successfully\",\"data\":{\"2410825_1_3049-u6824\":{\"status\":\"success\",\"desc\":\"unique id fetched found\",\"data\":{\"status\":\"Dialed\",\"report\":\"Answered\",\"contact_number\":\"9342603366\",\"duration\":\"12\",\"time_start\":\"16-Feb-2026 9:52:56 AM\",\"time_connect\":\"16-Feb-2026 9:53:05 AM\",\"time_end\":\"16-Feb-2026 9:53:23 AM\",\"dtmf\":\"\",\"currentRetryCount\":0,\"ivrExecuteFlow\":\"#1\"}}}}', '2026-02-16 09:52:30', '2026-02-16 10:00:32'),
 (14, 33, '8015718360', '2410827_1_3050-u6824', '2410827_1', 'busy', '', 0, '2026-02-16 09:54:25', NULL, '2026-02-16 09:54:55', 0, '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Call Submitted Successfully\",\"data\":[{\"contact_number\":\"8015718360\",\"unique_id\":\"2410827_1_3050-u6824\",\"system_api_uniqueid\":\"2410827_1\"}]}', '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Request Submitted Successfully\",\"data\":{\"2410827_1_3050-u6824\":{\"status\":\"success\",\"desc\":\"unique id fetched found\",\"data\":{\"status\":\"Dialed\",\"report\":\"Busy\",\"contact_number\":\"8015718360\",\"duration\":\"0\",\"time_start\":\"16-Feb-2026 9:54:25 AM\",\"time_connect\":\"-\",\"time_end\":\"16-Feb-2026 9:54:55 AM\",\"dtmf\":\"\",\"currentRetryCount\":0}}}}', '2026-02-16 09:54:18', '2026-02-16 10:00:32'),
-(15, 32, '7603899379', '2410825_2_3049-u6824', '2410825_2', 'processed', '1', 9, '2026-02-16 09:55:01', '2026-02-16 09:55:03', '2026-02-16 09:55:12', 0, '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Call Submitted Successfully\",\"data\":[{\"contact_number\":\"7603899379\",\"unique_id\":\"2410825_2_3049-u6824\",\"system_api_uniqueid\":\"2410825_2\"}]}', '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Request Submitted Successfully\",\"data\":{\"2410825_2_3049-u6824\":{\"status\":\"success\",\"desc\":\"unique id fetched found\",\"data\":{\"status\":\"Dialed\",\"report\":\"Answered\",\"contact_number\":\"7603899379\",\"duration\":\"9\",\"time_start\":\"16-Feb-2026 9:55:01 AM\",\"time_connect\":\"16-Feb-2026 9:55:03 AM\",\"time_end\":\"16-Feb-2026 9:55:12 AM\",\"dtmf\":\"1\",\"currentRetryCount\":0,\"ivrExecuteFlow\":\"#1\"}}}}', '2026-02-16 09:54:25', '2026-02-16 10:00:33');
+(15, 32, '7603899379', '2410825_2_3049-u6824', '2410825_2', 'processed', '1', 9, '2026-02-16 09:55:01', '2026-02-16 09:55:03', '2026-02-16 09:55:12', 0, '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Call Submitted Successfully\",\"data\":[{\"contact_number\":\"7603899379\",\"unique_id\":\"2410825_2_3049-u6824\",\"system_api_uniqueid\":\"2410825_2\"}]}', '{\"status\":\"success\",\"code\":\"000\",\"desc\":\"Request Submitted Successfully\",\"data\":{\"2410825_2_3049-u6824\":{\"status\":\"success\",\"desc\":\"unique id fetched found\",\"data\":{\"status\":\"Dialed\",\"report\":\"Answered\",\"contact_number\":\"7603899379\",\"duration\":\"9\",\"time_start\":\"16-Feb-2026 9:55:01 AM\",\"time_connect\":\"16-Feb-2026 9:55:03 AM\",\"time_end\":\"16-Feb-2026 9:55:12 AM\",\"dtmf\":\"1\",\"currentRetryCount\":0,\"ivrExecuteFlow\":\"#1\"}}}}', '2026-02-16 09:54:25', '2026-02-16 10:00:33'),
+(16, 35, '8675031038', NULL, NULL, 'failed', NULL, 0, NULL, NULL, NULL, 0, 'API call failed', NULL, '2026-04-02 10:48:51', '2026-04-02 10:48:51');
 
 -- --------------------------------------------------------
 
@@ -411,11 +436,20 @@ CREATE TABLE `leave_applications` (
 -- Dumping data for table `leave_applications`
 --
 
-INSERT INTO `leave_applications` (`Leave_ID`, `Reg_No`, `LeaveType_ID`, `Applied_Date`, `From_Date`, `To_Date`, `Reason`, `Proof`, `Status`, `Remarks`) VALUES
-(31, '927623bcs086', 3, '2026-02-16 04:21:18', '2026-02-17 06:00:00', '2026-02-19 18:00:00', 'Going to function', '', 'IVR Pending', 'Awaiting parent response via IVR call'),
-(32, '927623BEC203', 2, '2026-02-16 04:22:54', '2026-02-17 06:00:00', '2026-02-17 18:00:00', 'Symposium', '', 'Approved', 'Awaiting parent response via IVR call'),
-(33, '927623bit039', 3, '2026-02-16 04:23:51', '2026-02-16 18:00:00', '2026-02-19 18:00:00', 'Medical Issues', '', 'IVR Pending', 'Awaiting parent response via IVR call'),
-(34, '927623BIT040', 5, '2026-02-16 04:31:54', '2026-02-17 08:30:00', '2026-02-17 18:00:00', 'For Updating Aadhar', '', 'Pending', NULL);
+INSERT INTO `leave_applications` (`Leave_ID`, `Reg_No`, `LeaveType_ID`, `category_of_leave`, `Applied_Date`, `From_Date`, `To_Date`, `Reason`, `Proof`, `Status`, `Remarks`) VALUES
+(31, '927623bcs086', 3, 'Leave', '2026-02-16 04:21:18', '2026-02-17 06:00:00', '2026-02-19 18:00:00', 'Going to function', '', 'IVR Pending', 'Awaiting parent response via IVR call'),
+(32, '927623BEC203', 2, 'onduty', '2026-02-16 04:22:54', '2026-02-17 06:00:00', '2026-02-17 18:00:00', 'Symposium', '', 'Approved', 'Awaiting parent response via IVR call'),
+(33, '927623bit039', 3, 'Leave', '2026-02-16 04:23:51', '2026-02-16 18:00:00', '2026-02-19 18:00:00', 'Medical Issues', '', 'IVR Pending', 'Awaiting parent response via IVR call'),
+(34, '927623BIT040', 5, 'Outing', '2026-02-16 04:31:54', '2026-02-17 08:30:00', '2026-02-17 18:00:00', 'For Updating Aadhar', '', 'Pending', NULL),
+(35, '927623BCS046', 4, 'emergency Leave', '2026-04-02 05:14:35', '2026-04-02 18:00:00', '2026-04-04 18:00:00', 'FEVER', '', 'Pending', NULL),
+(36, '927623BAD011', 5, 'Outing', '2026-04-08 04:42:00', '2026-04-08 10:00:00', '2026-04-08 12:40:00', 'parents visit', '', 'Pending', NULL),
+(37, '927623BAD011', 5, 'Outing', '2026-04-08 04:47:57', '2026-04-08 18:00:00', '2026-04-08 23:30:00', 'wertyuiol;mjnhgfdxs', '', 'Cancelled', NULL),
+(39, '927623BAD011', 5, NULL, '2026-04-10 08:51:18', '2026-04-10 18:00:00', '2026-04-10 23:30:00', 'qwertyuiokjhgfd', '', 'Pending', NULL),
+(40, '927623BAD011', 4, NULL, '2026-04-10 09:00:50', '2026-04-10 18:00:00', '2026-04-12 18:00:00', 'dfghjk', '', 'Pending', NULL),
+(41, '927623BCS046', 2, NULL, '2026-04-10 09:45:44', '2026-04-10 06:00:00', '2026-04-12 06:00:00', 'going to home', '', 'Pending', NULL),
+(42, '927623BCS046', 4, NULL, '2026-04-10 09:50:47', '2026-04-10 18:00:00', '2026-04-12 18:00:00', 'hospital', '', 'Pending', NULL),
+(43, '927623BCS046', 3, NULL, '2026-04-10 09:51:08', '2026-04-11 18:00:00', '2026-04-18 18:00:00', 'ghjkl', '', 'Pending', NULL),
+(44, '927623BAD011', 3, NULL, '2026-04-10 10:07:25', '2026-04-11 18:00:00', '2026-04-13 18:00:00', 'home', 'Student/proofs/69d8cbdd63a82_1775815645.pdf', 'Pending', NULL);
 
 -- --------------------------------------------------------
 
@@ -468,7 +502,8 @@ INSERT INTO `mess_menu` (`menu_id`, `date`, `meal_type`, `items`, `category`, `f
 (3, '2026-02-16', 'Snacks', 'Samosa, Tea, Milk', 'Regular', 0.00, NULL, '2025-11-24 04:18:37'),
 (4, '2026-02-16', 'Dinner', 'Chappathi, Curd rice, channa masala', 'Regular', 0.00, NULL, '2025-11-24 04:19:23'),
 (6, '2026-02-16', 'Lunch', 'Rice, Dhal, Appalam, Payasam, Spinach kootu, Rasam, Butter milk', 'Regular', 0.00, NULL, '2026-01-22 03:34:56'),
-(7, '2026-02-16', 'Breakfast', 'Dosa, Mint Chutney, Sambar, Upma, Coffee, Milk', 'Regular', 0.00, NULL, '2026-01-28 03:38:12');
+(7, '2026-02-16', 'Breakfast', 'Dosa, Mint Chutney, Sambar, Upma, Coffee, Milk', 'Regular', 0.00, NULL, '2026-01-28 03:38:12'),
+(8, '2026-04-02', 'Breakfast', 'pongal \nidly', 'Regular', 0.00, NULL, '2026-04-02 04:39:35');
 
 -- --------------------------------------------------------
 
@@ -591,9 +626,12 @@ INSERT INTO `rooms` (`room_id`, `hostel_id`, `room_number`, `block`, `floor`, `c
 (50, 3, 'W401', 'West', 'IV', 3, 0, 0, 'Non-AC', 'Available', '2026-02-16 04:00:16', '2026-02-16 04:00:16'),
 (51, 1, 'N101', 'North', 'I', 3, 0, 0, 'Non-AC', 'Available', '2026-02-16 04:06:38', '2026-02-16 04:12:21'),
 (52, 1, 'W202', 'West', 'II', 3, 2, 0, 'Non-AC', 'Available', '2026-02-16 04:07:30', '2026-02-16 04:17:28'),
-(53, 1, 'S226', 'South', 'II', 3, 1, 0, 'Non-AC', 'Available', '2026-02-16 04:08:25', '2026-02-16 04:16:16'),
+(53, 1, 'S226', 'South', 'II', 3, 2, 0, 'Non-AC', 'Available', '2026-02-16 04:08:25', '2026-04-02 04:37:02'),
 (54, 1, 'W304', 'West', 'III', 3, 2, 0, 'Non-AC', 'Available', '2026-02-16 04:15:47', '2026-02-16 04:18:31'),
-(55, 1, 'E132', 'East', 'I', 3, 3, 0, 'AC', 'Available', '2026-02-16 04:17:52', '2026-02-16 04:31:00');
+(55, 1, 'E132', 'East', 'I', 3, 3, 0, 'AC', 'Available', '2026-02-16 04:17:52', '2026-02-16 04:31:00'),
+(56, 1, 'E-404', 'East', 'IV', 3, 1, 0, 'Non-AC', 'Available', '2026-04-02 04:38:50', '2026-04-02 04:58:01'),
+(57, 1, 'N-308', 'North', 'I', 3, 0, 0, 'Non-AC', 'Available', '2026-04-02 04:54:04', '2026-04-02 04:54:04'),
+(59, 1, 'W-202', 'West', 'I', 3, 0, 0, 'Non-AC', 'Available', '2026-04-10 07:02:37', '2026-04-10 07:02:37');
 
 -- --------------------------------------------------------
 
@@ -632,7 +670,9 @@ INSERT INTO `room_students` (`id`, `room_id`, `student_id`, `room_number`, `roll
 (27, 54, 22, '', '', '2026-02-16 04:18:31', NULL, 1, NULL, NULL, 'Active', NULL, NULL),
 (28, 55, 23, '', '', '2026-02-16 04:22:05', NULL, 1, NULL, NULL, 'Active', NULL, NULL),
 (29, 55, 24, '', '', '2026-02-16 04:28:46', NULL, 1, NULL, NULL, 'Active', NULL, NULL),
-(30, 55, 25, '', '', '2026-02-16 04:31:00', NULL, 1, NULL, NULL, 'Active', NULL, NULL);
+(30, 55, 25, '', '', '2026-02-16 04:31:00', NULL, 1, NULL, NULL, 'Active', NULL, NULL),
+(31, 53, 26, '', '', '2026-04-02 04:37:02', NULL, 1, NULL, NULL, 'Active', NULL, NULL),
+(32, 56, 27, '', '', '2026-04-02 04:58:01', NULL, 1, NULL, NULL, 'Active', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -653,18 +693,26 @@ CREATE TABLE `specialtokenenable` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `status` enum('active','inactive','ended') DEFAULT 'active',
   `max_usage` int(11) NOT NULL COMMENT '-1 = unlimited, >0 = limited',
-  `used_count` int(11) NOT NULL DEFAULT 0
+  `used_count` int(11) NOT NULL DEFAULT 0,
+  `free_limit` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `specialtokenenable`
 --
 
-INSERT INTO `specialtokenenable` (`menu_id`, `from_date`, `from_time`, `to_date`, `to_time`, `token_date`, `meal_type`, `menu_items`, `fee`, `created_at`, `status`, `max_usage`, `used_count`) VALUES
-(19, '2026-02-16', '16:00:00', '2026-02-16', '18:00:00', '2026-02-16', 'Snacks', 'Samosa', 0.00, '2026-02-16 04:08:12', 'active', 1, 0),
-(20, '2026-02-16', '08:00:00', '2026-02-16', '14:00:00', '2026-02-16', 'Dinner', 'Egg', 6.00, '2026-02-16 04:09:13', 'active', -1, 0),
-(21, '2026-02-16', '08:00:00', '2026-02-17', '14:00:00', '2026-02-18', 'Lunch', 'Chicken Briyani', 60.00, '2026-02-16 04:11:16', 'active', 1, 0),
-(22, '2026-02-16', '08:01:00', '2026-02-17', '14:01:00', '2026-02-18', 'Lunch', 'Mushroom Briyani', 50.00, '2026-02-16 04:11:36', 'active', 1, 0);
+INSERT INTO `specialtokenenable` (`menu_id`, `from_date`, `from_time`, `to_date`, `to_time`, `token_date`, `meal_type`, `menu_items`, `fee`, `created_at`, `status`, `max_usage`, `used_count`, `free_limit`) VALUES
+(19, '2026-02-16', '16:00:00', '2026-02-16', '18:00:00', '2026-02-16', 'Snacks', 'Samosa', 0.00, '2026-02-16 04:08:12', 'active', 1, 0, 0),
+(20, '2026-02-16', '08:00:00', '2026-02-16', '14:00:00', '2026-02-16', 'Dinner', 'Egg', 6.00, '2026-02-16 04:09:13', 'active', -1, 0, 0),
+(21, '2026-02-16', '08:00:00', '2026-02-17', '14:00:00', '2026-02-18', 'Lunch', 'Chicken Briyani', 60.00, '2026-02-16 04:11:16', 'active', 1, 0, 0),
+(22, '2026-02-16', '08:01:00', '2026-02-17', '14:01:00', '2026-02-18', 'Lunch', 'Mushroom Briyani', 50.00, '2026-02-16 04:11:36', 'active', 1, 0, 0),
+(23, '2026-04-10', '12:10:00', '2026-04-11', '12:10:00', '2026-04-11', 'Lunch', 'briyani', 88.00, '2026-04-10 06:40:34', 'active', 1, 0, 0),
+(24, '2026-04-10', '14:32:00', '2026-04-12', '14:32:00', '2026-04-13', 'Snacks', 'chilly', 50.00, '2026-04-10 09:03:00', 'active', 1, 0, 0),
+(25, '2026-04-10', '14:32:00', '2026-04-12', '14:32:00', '2026-04-13', 'Snacks', 'chilly', 50.00, '2026-04-10 09:03:04', 'active', 1, 0, 0),
+(26, '2026-04-10', '14:32:00', '2026-04-12', '14:32:00', '2026-04-13', 'Snacks', 'chilly', 50.00, '2026-04-10 09:03:05', 'active', 1, 0, 0),
+(27, '2026-04-10', '14:32:00', '2026-04-12', '14:32:00', '2026-04-13', 'Snacks', 'chilly', 50.00, '2026-04-10 09:03:05', 'active', 1, 0, 0),
+(28, '2026-04-10', '14:32:00', '2026-04-12', '14:32:00', '2026-04-13', 'Snacks', 'chilly', 50.00, '2026-04-10 09:03:05', 'active', 1, 0, 0),
+(29, '2026-04-10', '14:32:00', '2026-04-12', '14:32:00', '2026-04-13', 'Snacks', 'chilly', 50.00, '2026-04-10 09:03:05', 'active', 1, 0, 0);
 
 -- --------------------------------------------------------
 
@@ -742,7 +790,9 @@ INSERT INTO `students` (`student_id`, `user_id`, `roll_number`, `name`, `date_of
 (22, 17, '927623BIT040', 'Hema S', '2023-09-01', 'hemasuthakar@gmail.com', NULL, 'information_technology', 3, NULL, 54, NULL, '927623BIT040', 'Female', 'English', '9894968575', '934587907836', NULL, NULL, '2026-02-21', 'Counseling', NULL, '2023-2027', '1', NULL, '2026-02-16 04:18:31', '2026-02-16 04:21:46', NULL),
 (23, 18, '927623BIT027', 'Dharshini Priya A', '2023-09-01', 'dharshinipriya.a426@gmail.com', NULL, 'information_technology', 3, NULL, 55, NULL, '927623BIT027', 'Female', 'English', '9345844943', '553412834567', NULL, NULL, '2006-03-23', 'Counseling', NULL, '2023-2027', '1', NULL, '2026-02-16 04:22:05', '2026-02-16 04:31:50', NULL),
 (24, 19, '927623BCB020', 'Karunya S', '2023-09-08', 'karunyasivakumar@gmail.com', NULL, 'CSBS', 3, NULL, 55, NULL, '927623BCB020', 'Female', 'Tamil', '9163827953', NULL, NULL, NULL, '2026-06-07', 'Counseling', NULL, '2023-2027', '1', NULL, '2026-02-16 04:28:44', '2026-02-16 04:28:46', NULL),
-(25, 20, '927623BCB014', 'Indhuja K', '2023-09-01', 'indhuja@gmail.com', NULL, 'CSBS', 3, NULL, 55, NULL, '927623BCB014', 'Female', 'English', '9345678901', '456412834567', NULL, NULL, '2006-07-19', 'Counseling', NULL, '2023-2027', '1', NULL, '2026-02-16 04:31:00', '2026-02-16 04:31:00', NULL);
+(25, 20, '927623BCB014', 'Indhuja K', '2023-09-01', 'indhuja@gmail.com', NULL, 'CSBS', 3, NULL, 55, NULL, '927623BCB014', 'Female', 'English', '9345678901', '456412834567', NULL, NULL, '2006-07-19', 'Counseling', NULL, '2023-2027', '1', NULL, '2026-02-16 04:31:00', '2026-02-16 04:31:00', NULL),
+(26, 21, '927625bit011', 'kaviya', '2026-04-02', 'kaviya@gmail.com', NULL, 'IT', 1, NULL, 53, NULL, '25bit011', 'Female', 'English', '8675031038', '5077 1096 1512', NULL, NULL, '2006-07-08', 'Counseling', NULL, '2025-2029', '1', NULL, '2026-04-02 04:37:02', '2026-04-02 04:37:02', NULL),
+(27, 22, '927623BCS049', 'Sdha', '2026-04-02', 'keerthihaasri09@gmail.com', NULL, 'AIDS', 2, NULL, 56, NULL, '23BCS049', 'Female', 'Tamil', '8675031038', '265874569856', NULL, NULL, '2002-04-02', 'Management', NULL, '2024-2028', '1', NULL, '2026-04-02 04:58:01', '2026-04-02 04:58:01', NULL);
 
 -- --------------------------------------------------------
 
@@ -792,7 +842,7 @@ CREATE TABLE `users` (
   `user_id` int(11) NOT NULL,
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `role` enum('student','admin','faculty','mess_supervisor','biometrics') NOT NULL,
+  `role` enum('student','admin','male_admin','female_admin','faculty','mess_supervisor','biometrics') NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -818,7 +868,11 @@ INSERT INTO `users` (`user_id`, `username`, `password`, `role`, `created_at`, `u
 (17, '927623BIT040', '927623BIT040', 'student', '2026-02-16 04:18:31', '2026-02-16 04:18:31'),
 (18, '927623BIT027', '927623BIT027', 'student', '2026-02-16 04:22:05', '2026-02-16 04:22:05'),
 (19, '927623BCB020', '927623BCB020', 'student', '2026-02-16 04:28:45', '2026-02-16 04:28:45'),
-(20, '927623BCB014', '927623BCB014', 'student', '2026-02-16 04:31:00', '2026-02-16 04:31:00');
+(20, '927623BCB014', '927623BCB014', 'student', '2026-02-16 04:31:00', '2026-02-16 04:31:00'),
+(21, '927625bit011', '927625bit011', 'student', '2026-04-02 04:37:02', '2026-04-02 04:37:02'),
+(22, '927623BCS049', '927623BCS049', 'student', '2026-04-02 04:58:01', '2026-04-02 04:58:01'),
+(23, 'maleadmin', 'maleadmin', 'male_admin', '2026-04-10 04:33:55', '2026-04-10 04:33:55'),
+(24, 'femaleadmin', 'femaleadmin', 'female_admin', '2026-04-10 04:33:55', '2026-04-10 04:33:55');
 
 -- --------------------------------------------------------
 
@@ -1079,7 +1133,7 @@ ALTER TABLE `academic_batch`
 -- AUTO_INCREMENT for table `attendance`
 --
 ALTER TABLE `attendance`
-  MODIFY `attendance_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `attendance_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `attendance_time_control`
@@ -1097,7 +1151,7 @@ ALTER TABLE `biometric_machines`
 -- AUTO_INCREMENT for table `blocked_students`
 --
 ALTER TABLE `blocked_students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `faculty`
@@ -1115,13 +1169,13 @@ ALTER TABLE `gate_log`
 -- AUTO_INCREMENT for table `general_leave`
 --
 ALTER TABLE `general_leave`
-  MODIFY `GeneralLeave_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `GeneralLeave_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `guardians`
 --
 ALTER TABLE `guardians`
-  MODIFY `guardian_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
+  MODIFY `guardian_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=76;
 
 --
 -- AUTO_INCREMENT for table `hostels`
@@ -1139,13 +1193,13 @@ ALTER TABLE `hostel_faculty`
 -- AUTO_INCREMENT for table `ivr_calls`
 --
 ALTER TABLE `ivr_calls`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `leave_applications`
 --
 ALTER TABLE `leave_applications`
-  MODIFY `Leave_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `Leave_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT for table `leave_types`
@@ -1157,7 +1211,7 @@ ALTER TABLE `leave_types`
 -- AUTO_INCREMENT for table `mess_menu`
 --
 ALTER TABLE `mess_menu`
-  MODIFY `menu_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `menu_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `mess_supervisors`
@@ -1187,19 +1241,19 @@ ALTER TABLE `notices`
 -- AUTO_INCREMENT for table `rooms`
 --
 ALTER TABLE `rooms`
-  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
+  MODIFY `room_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=60;
 
 --
 -- AUTO_INCREMENT for table `room_students`
 --
 ALTER TABLE `room_students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `specialtokenenable`
 --
 ALTER TABLE `specialtokenenable`
-  MODIFY `menu_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `menu_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `stay_in_hostel_requests`
@@ -1211,7 +1265,7 @@ ALTER TABLE `stay_in_hostel_requests`
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `temporary_stay`
@@ -1229,7 +1283,7 @@ ALTER TABLE `token_actions`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `vacated_students_history`

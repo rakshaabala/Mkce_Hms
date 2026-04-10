@@ -683,6 +683,34 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                 return (fromText || '').toLowerCase().trim();
                             }
 
+                            function normalizeProofUrl(proofUrl) {
+                                if (!proofUrl) {
+                                    return '';
+                                }
+
+                                const trimmedUrl = String(proofUrl).trim();
+                                if (!trimmedUrl) {
+                                    return '';
+                                }
+
+                                if (/^(?:https?:)?\/\//i.test(trimmedUrl)) {
+                                    return trimmedUrl;
+                                }
+
+                                const pathMatch = window.location.pathname.match(/^(.*?\/)(?:Student|admin|mess|print|faculty)\//i);
+                                const appRootPath = pathMatch ? pathMatch[1] : '/';
+
+                                if (trimmedUrl.toLowerCase().startsWith(appRootPath.toLowerCase())) {
+                                    return trimmedUrl;
+                                }
+
+                                const cleanedPath = trimmedUrl
+                                    .replace(/^(?:\.\.\/)+/, '')
+                                    .replace(/^\/+/, '');
+
+                                return appRootPath + cleanedPath;
+                            }
+
                             function isOutingSelected() {
                                 const leaveType = getSelectedLeaveTypeName();
                                 return leaveType.includes('outing');
@@ -936,7 +964,7 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
 
                                 const fromDateTime = row.find('td[data-from-date]').data('from-date');
                                 const toDateTime = row.find('td[data-to-date]').data('to-date');
-                                const proofUrl = row.find('.view-proof').data('proof-url');
+                                const proofUrl = normalizeProofUrl(row.find('.view-proof').data('proof-url'));
                                 
                                 const fromParts = parseDateTimeString(fromDateTime);
                                 const toParts = parseDateTimeString(toDateTime);
@@ -1050,7 +1078,7 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
 
                             // 4. VIEW PROOF MODAL
                             $(document).on('click', '.view-proof', function () {
-                                const proofUrl = $(this).data('proof-url');
+                                const proofUrl = normalizeProofUrl($(this).data('proof-url'));
                                 const modalBody = $('#proofModalBody');
                                 modalBody.empty();
                                 modalBody.html('<p class="text-center">Loading proof...</p>');
@@ -1261,7 +1289,7 @@ if (!isset($_SESSION['user_id']) || (!isset($_SESSION['role']) && !isset($_SESSI
                                     const appliedDateObj = new Date(row.Applied_Date);
                                     const appliedDateDisplay = `${appliedDateObj.getDate()}-${(appliedDateObj.getMonth() + 1)}-${appliedDateObj.getFullYear()}`;
                                     const status = row.Status;
-                                    const proofUrl = row.Proof || '';
+                                    const proofUrl = normalizeProofUrl(row.Proof || '');
 
                                     // Status badge logic using a cleaner ternary or match statement
                                     let statusClass = 'bg-warning';
