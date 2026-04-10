@@ -1,6 +1,15 @@
 <?php 
 session_start();
 include '../db.php';
+include './admin_scope.php';
+
+if (!is_any_admin_role()) {
+    header('Location: ../login');
+    exit;
+}
+
+$scopeGender = get_hostel_gender_scope_for_role();
+$scopeGenderEsc = $scopeGender !== null ? $conn->real_escape_string($scopeGender) : null;
 
 // Handle AJAX requests for dynamic data loading
 $ajaxAction = $_GET['ajax'] ?? $_POST['ajax'] ?? '';
@@ -11,7 +20,11 @@ if ($ajaxAction) {
     // Get Hostels List
     $hostelAction = $_GET['ajax'] ?? $_POST['ajax'] ?? '';
     if ($hostelAction === 'getHostels') {
-        $sql = "SELECT hostel_id, hostel_name, gender FROM hostels ORDER BY gender, hostel_name";
+        $sql = "SELECT hostel_id, hostel_name, gender FROM hostels";
+        if ($scopeGender !== null) {
+            $sql .= " WHERE gender = '" . $scopeGenderEsc . "'";
+        }
+        $sql .= " ORDER BY gender, hostel_name";
         $result = mysqli_query($conn, $sql);
         $hostels = [];
         while($row = mysqli_fetch_assoc($result)) {
@@ -57,6 +70,10 @@ if ($ajaxAction) {
             } else {
                 $sql .= " WHERE 1=1";
             }
+
+            if ($scopeGender !== null) {
+                $sql .= " AND s.gender = '" . $scopeGenderEsc . "'";
+            }
             
             $sql .= " AND lt.LeaveType_ID <> 1
                     GROUP BY lt.LeaveType_ID, lt.Leave_Type_Name
@@ -72,6 +89,10 @@ if ($ajaxAction) {
             
             if ($hostelId > 0) {
                 $totalSql .= " AND r.hostel_id = $hostelId";
+            }
+
+            if ($scopeGender !== null) {
+                $totalSql .= " AND s.gender = '" . $scopeGenderEsc . "'";
             }
             
             $totalResult = mysqli_query($conn, $totalSql);
@@ -97,12 +118,14 @@ if ($ajaxAction) {
             $hostelJoin = "LEFT JOIN students s ON la.Reg_No = s.roll_number
                           LEFT JOIN rooms r ON s.room_id = r.room_id";
             $hostelWhere = $hostelId > 0 ? " AND r.hostel_id = $hostelId" : "";
+            $scopeWhere = $scopeGender !== null ? " AND s.gender = '" . $scopeGenderEsc . "'" : "";
             
             // Get total processed count
             $totalSql = "SELECT COUNT(*) as total FROM leave_applications la
                          $hostelJoin
                          WHERE la.Status IN ('Rejected by HOD','Rejected by Admin','Rejected by Parents','Approved')
-                         $hostelWhere";
+                         $hostelWhere
+                         $scopeWhere";
             $totalResult = mysqli_query($conn, $totalSql);
             $totalRow = mysqli_fetch_assoc($totalResult);
             $totalCount = $totalRow['total'];
@@ -113,7 +136,7 @@ if ($ajaxAction) {
                             LEFT JOIN leave_applications la ON lt.LeaveType_ID = la.LeaveType_ID 
                                 AND la.Status = 'Approved'
                             $hostelJoin
-                            WHERE 1=1 $hostelWhere
+                            WHERE 1=1 $hostelWhere $scopeWhere
                             GROUP BY lt.LeaveType_ID, lt.Leave_Type_Name
                             ORDER BY lt.LeaveType_ID";
             $approvedResult = mysqli_query($conn, $approvedSql);
@@ -124,7 +147,7 @@ if ($ajaxAction) {
                             LEFT JOIN leave_applications la ON lt.LeaveType_ID = la.LeaveType_ID 
                                 AND la.Status IN ('Rejected by HOD','Rejected by Admin','Rejected by Parents')
                             $hostelJoin
-                            WHERE 1=1 $hostelWhere
+                            WHERE 1=1 $hostelWhere $scopeWhere
                             GROUP BY lt.LeaveType_ID, lt.Leave_Type_Name
                             ORDER BY lt.LeaveType_ID";
             $rejectedResult = mysqli_query($conn, $rejectedSql);
@@ -133,7 +156,8 @@ if ($ajaxAction) {
             $totalApprovedSql = "SELECT COUNT(*) as total FROM leave_applications la
                                 $hostelJoin
                                 WHERE la.Status = 'Approved'
-                                $hostelWhere";
+                                $hostelWhere
+                                $scopeWhere";
             $totalApprovedResult = mysqli_query($conn, $totalApprovedSql);
             $totalApprovedRow = mysqli_fetch_assoc($totalApprovedResult);
             $totalApprovedCount = $totalApprovedRow['total'];
@@ -141,7 +165,8 @@ if ($ajaxAction) {
             $totalRejectedSql = "SELECT COUNT(*) as total FROM leave_applications la
                                 $hostelJoin
                                 WHERE la.Status IN ('Rejected by HOD','Rejected by Admin','Rejected by Parents')
-                                $hostelWhere";
+                                $hostelWhere
+                                $scopeWhere";
             $totalRejectedResult = mysqli_query($conn, $totalRejectedSql);
             $totalRejectedRow = mysqli_fetch_assoc($totalRejectedResult);
             $totalRejectedCount = $totalRejectedRow['total'];
@@ -179,6 +204,10 @@ if ($ajaxAction) {
             
             if ($hostelId > 0) {
                 $sql .= " AND r.hostel_id = $hostelId";
+            }
+
+            if ($scopeGender !== null) {
+                $sql .= " AND s.gender = '" . $scopeGenderEsc . "'";
             }
             
             $sql .= " ORDER BY la.Applied_Date DESC";
@@ -234,6 +263,10 @@ if ($ajaxAction) {
             
             if ($hostelId > 0) {
                 $sql .= " AND r.hostel_id = $hostelId";
+            }
+
+            if ($scopeGender !== null) {
+                $sql .= " AND s.gender = '" . $scopeGenderEsc . "'";
             }
             
             $sql .= " ORDER BY la.Leave_ID DESC";
@@ -299,6 +332,10 @@ if ($ajaxAction) {
                                 $sql .= " AND r.hostel_id = $hostelId";
                         }
 
+                        if ($scopeGender !== null) {
+                            $sql .= " AND s.gender = '" . $scopeGenderEsc . "'";
+                        }
+
                         // Apply global search filter (q) when provided from DataTables
                         $q = trim((string)($_GET['q'] ?? ''));
                         if ($q !== '') {
@@ -327,6 +364,10 @@ if ($ajaxAction) {
             if ($hostelId > 0) {
                     $sql .= " AND r.hostel_id = $hostelId";
             }
+
+                if ($scopeGender !== null) {
+                    $sql .= " AND s.gender = '" . $scopeGenderEsc . "'";
+                }
 
             // Apply global search filter (q) when provided from DataTables
             $q = trim((string)($_GET['q'] ?? ''));
