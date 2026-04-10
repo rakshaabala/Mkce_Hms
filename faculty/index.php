@@ -1937,12 +1937,12 @@ $department_name = isset($department_name) ? $department_name : 'All Departments
 
                 Swal.fire({
                     title: 'Confirm Approval',
-                    text: "Are you sure you want to approve this leave?",
+                    text: "Are you sure you want to approve this leave? It will be forwarded to Admin for final approval.",
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#1cc88a', // Success green
                     cancelButtonColor: '#6c757d', // Secondary gray
-                    confirmButtonText: 'Yes, Approve Leave'
+                    confirmButtonText: 'Yes, Forward to Admin'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         // User confirmed, proceed with AJAX
@@ -1950,7 +1950,7 @@ $department_name = isset($department_name) ? $department_name : 'All Departments
                             url: "../api.php",
                             type: "POST",
                             data: {
-                                action: "approve", // This action should update status to 'Approved'
+                                action: "faculty_approve", // Forward to admin with "Approved by Faculty" status
                                 id: leaveId
                             },
                             dataType: "json",
@@ -1958,7 +1958,7 @@ $department_name = isset($department_name) ? $department_name : 'All Departments
                                 if (response.status === "success") {
                                     // Show success message using SweetAlert
                                     Swal.fire(
-                                        'Approved!',
+                                        'Forwarded!',
                                         response.message,
                                         'success'
                                     );

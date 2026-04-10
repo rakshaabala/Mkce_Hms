@@ -105,12 +105,38 @@ if (!empty($action)) {
             $id = $_POST['id'] ?? '';
 
             if ($id) {
-                $update_sql = "UPDATE leave_applications SET Remarks='Approved by HOD' WHERE leave_id=?";
+                $status = "Approved";
+                $update_sql = "UPDATE leave_applications SET Status=?, Remarks='Approved by HOD' WHERE leave_id=?";
                 $stmt = mysqli_prepare($conn, $update_sql);
                 if ($stmt) {
-                    mysqli_stmt_bind_param($stmt, "s", $id);
+                    mysqli_stmt_bind_param($stmt, "ss", $status, $id);
                     if (mysqli_stmt_execute($stmt)) {
                         echo json_encode(['status' => 'success', 'message' => 'Leave Approved successfully.']);
+                    } else {
+                        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . mysqli_stmt_error($stmt)]);
+                    }
+                    mysqli_stmt_close($stmt);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'Database error: ' . mysqli_error($conn)]);
+                }
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Invalid request.']);
+            }
+            break;
+
+        // Faculty leave approval - forwards to admin
+        case 'faculty_approve':
+            $id = $_POST['id'] ?? '';
+
+            if ($id) {
+                $status = "Forwarded to Admin";
+                $remarks = "Approved by Faculty";
+                $update_sql = "UPDATE leave_applications SET Status=?, Remarks=? WHERE leave_id=?";
+                $stmt = mysqli_prepare($conn, $update_sql);
+                if ($stmt) {
+                    mysqli_stmt_bind_param($stmt, "sss", $status, $remarks, $id);
+                    if (mysqli_stmt_execute($stmt)) {
+                        echo json_encode(['status' => 'success', 'message' => 'Leave forwarded to Admin for final approval.']);
                     } else {
                         echo json_encode(['status' => 'error', 'message' => 'Database error: ' . mysqli_stmt_error($stmt)]);
                     }
