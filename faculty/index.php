@@ -952,9 +952,15 @@ $department_name = isset($department_name) ? $department_name : 'All Departments
                                                 echo "<td>" . $fromDate . "</td>";
                                                 echo "<td>" . $toDate . "</td>";
                                                 echo "<td>" . $row['Reason'] . "</td>";
-                                                // Prevent viewing submitted proofs
                                                 if (!empty($row['Proof'])) {
-                                                    echo "<td class='text-center align-middle text-muted'>Proof Submitted (Not Viewable)</td>";
+                                                    echo "<td class='text-center align-middle'>
+                                                        <button type='button' class='btn btn-info btn-sm view-proof' 
+                                                            data-proof='" . $row['Proof'] . "' 
+                                                            data-bs-toggle='modal' 
+                                                            data-bs-target='#viewProofModal'>
+                                                            <i class='fa-solid fa-eye'></i> View Proof
+                                                        </button>
+                                                    </td>";
                                                 } else {
                                                     echo "<td class='text-center align-middle text-muted'>No Proof Uploaded </td>";
                                                 }
@@ -1196,7 +1202,14 @@ $department_name = isset($department_name) ? $department_name : 'All Departments
                                                     echo "<td>" . $row['Reason'] . "</td>";
 
                                                     if (!empty($row['Proof'])) {
-                                                        echo "<td class='text-center align-middle text-muted'>Proof Submitted (Not Viewable)</td>";
+                                                        echo "<td class='text-center align-middle'>
+                                                            <button type='button' class='btn btn-info btn-sm view-proof' 
+                                                                data-proof='" . $row['Proof'] . "' 
+                                                                data-bs-toggle='modal' 
+                                                                data-bs-target='#viewProofModal'>
+                                                                <i class='fa-solid fa-eye'></i> View Proof
+                                                            </button>
+                                                        </td>";
                                                     } else {
                                                         echo "<td class='text-center align-middle text-muted'>No Proof Uploaded </td>";
                                                     }

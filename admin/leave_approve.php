@@ -220,12 +220,6 @@ if ($ajaxAction) {
                 $fromDate = date('d-m-Y h:i A', strtotime($row['From_Date']));
                 $toDate = date('d-m-Y h:i A', strtotime($row['To_Date']));
                 
-                // Prevent viewing submitted proofs
-                $proof = '';
-                if (empty($row['Proof'])) {
-                    $proof = '';
-                }
-                
                 $rows[] = [
                     'Leave_ID' => $row['Leave_ID'],
                     'Reg_No' => $row['Reg_No'],
@@ -239,7 +233,7 @@ if ($ajaxAction) {
                     'To_Date' => $toDate,
                     'To_Date_Raw' => $row['To_Date'],
                     'Reason' => $row['Reason'],
-                    'Proof' => $proof,
+                    'Proof' => $row['Proof'] ?? '',
                     'Status' => $row['Status']
                 ];
             }
@@ -286,12 +280,6 @@ if ($ajaxAction) {
                 $toDate = date('d-m-Y h:i A', strtotime($row['To_Date']));
                 $isEditable = ($row['Status'] == 'Approved' || $row['Status'] == 'out');
                 
-                // Prevent viewing submitted proofs
-                $proof = '';
-                if (empty($row['Proof'])) {
-                    $proof = '';
-                }
-                
                 $rows[] = [
                     'Leave_ID' => $row['Leave_ID'],
                     'Reg_No' => $row['Reg_No'],
@@ -305,7 +293,7 @@ if ($ajaxAction) {
                     'To_Date' => $toDate,
                     'To_Date_Raw' => $row['To_Date'],
                     'Reason' => $row['Reason'],
-                    'Proof' => $proof,
+                    'Proof' => $row['Proof'] ?? '',
                     'Status' => $row['Status'],
                     'Remarks' => $row['Remarks'] ?? '',
                     'isEditable' => $isEditable,

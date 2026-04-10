@@ -6115,10 +6115,6 @@ if (!empty($action)) {
             }
             
             while ($r = $result->fetch_assoc()) {
-                // Prevent viewing submitted proofs
-                if (!empty($r['Proof'])) {
-                    $r['Proof'] = '';
-                }
                 $rows[] = $r;
             }
             $stmt->close();
