@@ -821,8 +821,6 @@ ini_set('display_errors', 1);
                                         echo "</tr>";
                                         $idx++;
                                     }
-                                } else {
-                                    echo "<tr><td colspan='7' class='text-center text-muted'>No vacated students found</td></tr>";
                                 }
                                 ?>
                                 </tbody>
@@ -2093,18 +2091,29 @@ $(function(){
             recalcSno(tblId);
         }, 200);
     });
+
+    function getVacatedTable() {
+        if ($.fn.dataTable.isDataTable('#table_vacated')) {
+            return $('#table_vacated').DataTable();
+        }
+
+        return $('#table_vacated').DataTable({
+            pageLength: 10,
+            lengthChange: false,
+            ordering: true,
+            searching: true,
+            responsive: true,
+            order: [[6, 'desc']], // Sort by Vacated At column
+            language: {
+                emptyTable: 'No vacated students found'
+            }
+        });
+    }
     
     // Initialize DataTable for vacated students
     setTimeout(function() {
         try {
-            $('#table_vacated').DataTable({
-                pageLength: 10,
-                lengthChange: false,
-                ordering: true,
-                searching: true,
-                responsive: true,
-                order: [[6, 'desc']] // Sort by Vacated At column
-            });
+            getVacatedTable();
         } catch (e) {
             console.error('Error initializing DataTable for vacated students:', e);
         }
@@ -2112,7 +2121,7 @@ $(function(){
     
     // Search input for vacated students
     $('.table-search[data-target="vacated"]').on('input', function(){
-        var tbl = $('#table_vacated').DataTable();
+        var tbl = getVacatedTable();
         tbl.search(this.value).draw();
     });
     
@@ -2125,7 +2134,7 @@ $(function(){
         var gender = $('#filter_gender_vacated').val() || '';
         var month = $('#filter_month_vacated').val() || '';
         
-        var table = $('#table_vacated').DataTable();
+        var table = getVacatedTable();
         table.search('').draw(); // Clear global search
         
         // Reset custom filters
@@ -2222,7 +2231,7 @@ $(function(){
         // Remove custom search functions
         $.fn.dataTable.ext.search = [];
         
-        var table = $('#table_vacated').DataTable();
+        var table = getVacatedTable();
         table.search('').draw();
     });
     
