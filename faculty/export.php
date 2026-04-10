@@ -1,7 +1,7 @@
 <?php
 
-// export.php lives in project root; include db.php from the same directory
-require_once __DIR__ . '/db.php';
+// export.php lives in faculty/; include db.php from project root
+require_once __DIR__ . '/../db.php';
 
 $action = strtolower($_GET['action'] ?? '');
 
