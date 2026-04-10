@@ -1,4 +1,19 @@
 <?php
+session_start();
+require_once dirname(__DIR__) . '/admin/admin_scope.php';
+
+function is_mess_export_access_role(): bool {
+    $role = $_SESSION['role'] ?? ($_SESSION['user_type'] ?? '');
+    return in_array($role, ['mess_supervisor', 'admin', 'male_admin', 'female_admin'], true);
+}
+
+if (!is_mess_export_access_role()) {
+    http_response_code(403);
+    die('Unauthorized');
+}
+
+$messScopeGender = get_hostel_gender_scope_for_role();
+
 // Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -187,6 +202,7 @@ exit(); // Ensure no output after PDF
 
 // Report generation functions
 function generateTokenRequestsReport($pdf, $conn, $filterMonth, $filterDate, $filterMealType, $filterItem) {
+    global $messScopeGender;
     // Further reduce spacing between subtitle and report title
     $pdf->SetY(22);
     
@@ -235,9 +251,15 @@ function generateTokenRequestsReport($pdf, $conn, $filterMonth, $filterDate, $fi
             LEFT JOIN students s ON mt.roll_number = s.roll_number 
             LEFT JOIN specialtokenenable st ON mt.menu_id = st.menu_id 
             WHERE mt.token_type = 'Special'";
-    
+
     $params = [];
     $types = '';
+
+    if ($messScopeGender !== null) {
+        $sql .= " AND s.gender = ?";
+        $params[] = $messScopeGender;
+        $types .= 's';
+    }
     
     if (!empty($filterDate)) {
         $sql .= " AND mt.token_date = ?";
@@ -333,6 +355,7 @@ function generateTokenRequestsReport($pdf, $conn, $filterMonth, $filterDate, $fi
 }
 
 function generateRevenueReport($pdf, $conn, $filterMonth) {
+    global $messScopeGender;
     $month = !empty($filterMonth) ? $filterMonth : date('Y-m');
     
     // Further reduce spacing between subtitle and report title
@@ -359,7 +382,12 @@ function generateRevenueReport($pdf, $conn, $filterMonth) {
     
     $sql = "SELECT mt.token_date as date, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as revenue 
             FROM mess_tokens mt 
-            WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ? 
+            LEFT JOIN students s ON mt.roll_number = s.roll_number
+            WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ?";
+    if ($messScopeGender !== null) {
+        $sql .= " AND s.gender = '" . $conn->real_escape_string($messScopeGender) . "'";
+    }
+    $sql .= " 
             GROUP BY mt.token_date 
             ORDER BY mt.token_date DESC";
 
@@ -374,10 +402,15 @@ function generateRevenueReport($pdf, $conn, $filterMonth) {
     } catch (Exception $e) {
         // Fallback query without prepared statement
         $sql = "SELECT mt.token_date as date, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as revenue 
-                FROM mess_tokens mt 
-                WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = '$month' 
-                GROUP BY mt.token_date 
-                ORDER BY mt.token_date DESC";
+            FROM mess_tokens mt 
+            LEFT JOIN students s ON mt.roll_number = s.roll_number
+            WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = '$month'";
+        if ($messScopeGender !== null) {
+            $sql .= " AND s.gender = '" . $conn->real_escape_string($messScopeGender) . "'";
+        }
+        $sql .= " 
+            GROUP BY mt.token_date 
+            ORDER BY mt.token_date DESC";
         $result = $conn->query($sql);
     }
     
@@ -422,6 +455,7 @@ function generateRevenueReport($pdf, $conn, $filterMonth) {
 }
 
 function generateConsumptionReport($pdf, $conn, $filterMonth) {
+    global $messScopeGender;
     $month = !empty($filterMonth) ? $filterMonth : date('Y-m');
     
     // Further reduce spacing between subtitle and report title
@@ -449,7 +483,11 @@ function generateConsumptionReport($pdf, $conn, $filterMonth) {
     $sql = "SELECT mt.roll_number, COALESCE(s.name, 'Unknown') as student_name, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as total_spent 
             FROM mess_tokens mt 
             LEFT JOIN students s ON mt.roll_number = s.roll_number 
-            WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ? 
+            WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ?";
+    if ($messScopeGender !== null) {
+        $sql .= " AND s.gender = '" . $conn->real_escape_string($messScopeGender) . "'";
+    }
+    $sql .= " 
             GROUP BY mt.roll_number, s.name 
             ORDER BY total_spent DESC 
             LIMIT 1000";
@@ -465,12 +503,16 @@ function generateConsumptionReport($pdf, $conn, $filterMonth) {
     } catch (Exception $e) {
         // Fallback query without prepared statement
         $sql = "SELECT mt.roll_number, COALESCE(s.name, 'Unknown') as student_name, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as total_spent 
-                FROM mess_tokens mt 
-                LEFT JOIN students s ON mt.roll_number = s.roll_number 
-                WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = '$month' 
-                GROUP BY mt.roll_number, s.name 
-                ORDER BY total_spent DESC 
-                LIMIT 1000";
+            FROM mess_tokens mt 
+            LEFT JOIN students s ON mt.roll_number = s.roll_number 
+            WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = '$month'";
+        if ($messScopeGender !== null) {
+            $sql .= " AND s.gender = '" . $conn->real_escape_string($messScopeGender) . "'";
+        }
+        $sql .= " 
+            GROUP BY mt.roll_number, s.name 
+            ORDER BY total_spent DESC 
+            LIMIT 1000";
         $result = $conn->query($sql);
     }
     

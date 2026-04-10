@@ -5,6 +5,10 @@ if (!is_any_admin_role()) {
     header('Location: ../login');
     exit;
 }
+
+// Reuse the full mess supervisor UI for all admin roles.
+header('Location: ../mess/index.php');
+exit;
 ?>
 <!DOCTYPE html>
 <html lang="en">

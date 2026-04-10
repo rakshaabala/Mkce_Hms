@@ -44,6 +44,32 @@ function require_any_admin_api_role()
     }
 }
 
+function is_mess_access_role(): bool
+{
+    $role = $_SESSION['role'] ?? ($_SESSION['user_type'] ?? '');
+    return in_array($role, ['mess_supervisor', 'admin', 'male_admin', 'female_admin'], true);
+}
+
+function require_mess_access_role(): void
+{
+    if (!is_mess_access_role()) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+}
+
+function get_mess_scope_gender(): ?string
+{
+    $role = $_SESSION['role'] ?? ($_SESSION['user_type'] ?? '');
+    if ($role === 'male_admin') {
+        return 'Male';
+    }
+    if ($role === 'female_admin') {
+        return 'Female';
+    }
+    return null;
+}
+
 header('Content-Type: application/json');
 
 // Accept both form data and JSON body payloads
@@ -1481,6 +1507,8 @@ if (!empty($action)) {
             // ===== Mess Admin APIs (moved from adminmessapi.php) =====
 
         case 'get_dashboard_stats':
+            require_mess_access_role();
+            $messScopeGender = get_mess_scope_gender();
             // Get dashboard statistics
             $stats = [];
 
@@ -1499,7 +1527,10 @@ if (!empty($action)) {
             $row = $result->fetch_assoc();
             $stats['active_special_tokens'] = (int) $row['cnt'];
 
-            $sql = "SELECT COALESCE(SUM(mt.special_fee), 0) as revenue FROM mess_tokens mt WHERE DATE(mt.token_date) = ? AND mt.token_type = 'Special'";
+            $sql = "SELECT COALESCE(SUM(mt.special_fee), 0) as revenue FROM mess_tokens mt LEFT JOIN students s ON mt.roll_number = s.roll_number WHERE DATE(mt.token_date) = ? AND mt.token_type = 'Special'";
+            if ($messScopeGender !== null) {
+                $sql .= " AND s.gender = '" . mysqli_real_escape_string($conn, $messScopeGender) . "'";
+            }
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("s", $today);
             $stmt->execute();
@@ -1509,7 +1540,10 @@ if (!empty($action)) {
             $stmt->close();
 
             $currentMonth = date('Y-m');
-            $sql = "SELECT COUNT(*) as cnt FROM mess_tokens WHERE DATE_FORMAT(token_date, '%Y-%m') = ? AND token_type = 'Special'";
+            $sql = "SELECT COUNT(*) as cnt FROM mess_tokens mt LEFT JOIN students s ON mt.roll_number = s.roll_number WHERE DATE_FORMAT(mt.token_date, '%Y-%m') = ? AND mt.token_type = 'Special'";
+            if ($messScopeGender !== null) {
+                $sql .= " AND s.gender = '" . mysqli_real_escape_string($conn, $messScopeGender) . "'";
+            }
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("s", $currentMonth);
             $stmt->execute();
@@ -1575,6 +1609,8 @@ if (!empty($action)) {
             break;
 
         case 'get_token_requests':
+            require_mess_access_role();
+            $messScopeGender = get_mess_scope_gender();
             // Get token requests with optional filters
             $filterMonth = $_POST['filter_month'] ?? '';
             $filterDate = $_POST['filter_date'] ?? '';
@@ -1596,9 +1632,15 @@ if (!empty($action)) {
                         LEFT JOIN specialtokenenable st ON mt.menu_id = st.menu_id 
                         WHERE mt.token_type = 'Special'";
 
+            if ($messScopeGender !== null) {
+                $sql .= " AND s.gender = ?";
+                $params[] = $messScopeGender;
+                $types .= 's';
+            }
+
             // Add filters
-            $params = [];
-            $types = '';
+            $params = $params ?? [];
+            $types = $types ?? '';
 
             switch (true) {
                 case !empty($filterDate):
@@ -1685,10 +1727,16 @@ if (!empty($action)) {
             break;
 
         case 'get_monthly_revenue':
+            require_mess_access_role();
+            $messScopeGender = get_mess_scope_gender();
             // Get monthly revenue
             $month = $_POST['month'] ?? date('Y-m');
 
-            $sql = "SELECT mt.token_date as date, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as revenue FROM mess_tokens mt WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ? GROUP BY mt.token_date ORDER BY mt.token_date DESC";
+            $sql = "SELECT mt.token_date as date, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as revenue FROM mess_tokens mt LEFT JOIN students s ON mt.roll_number = s.roll_number WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ?";
+            if ($messScopeGender !== null) {
+                $sql .= " AND s.gender = '" . mysqli_real_escape_string($conn, $messScopeGender) . "'";
+            }
+            $sql .= " GROUP BY mt.token_date ORDER BY mt.token_date DESC";
 
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("s", $month);
@@ -1715,10 +1763,16 @@ if (!empty($action)) {
             break;
 
         case 'get_student_consumption':
+            require_mess_access_role();
+            $messScopeGender = get_mess_scope_gender();
             // Get student consumption data
             $month = $_POST['month'] ?? date('Y-m');
 
-            $sql = "SELECT mt.roll_number, COALESCE(s.name, 'N/A') as student_name, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as total_spent FROM mess_tokens mt LEFT JOIN students s ON mt.roll_number = s.roll_number WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ? GROUP BY mt.roll_number, s.name ORDER BY total_spent DESC LIMIT 1000";
+            $sql = "SELECT mt.roll_number, COALESCE(s.name, 'N/A') as student_name, COUNT(mt.token_id) as tokens_count, COALESCE(SUM(mt.special_fee), 0) as total_spent FROM mess_tokens mt LEFT JOIN students s ON mt.roll_number = s.roll_number WHERE mt.token_type = 'Special' AND DATE_FORMAT(mt.token_date, '%Y-%m') = ?";
+            if ($messScopeGender !== null) {
+                $sql .= " AND s.gender = '" . mysqli_real_escape_string($conn, $messScopeGender) . "'";
+            }
+            $sql .= " GROUP BY mt.roll_number, s.name ORDER BY total_spent DESC LIMIT 1000";
 
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("s", $month);
@@ -4706,13 +4760,19 @@ if (!empty($action)) {
             break;
 
         case 'get_statistics':
+            require_mess_access_role();
+            $messScopeGender = get_mess_scope_gender();
             // Get statistics
             $stats = [];
             $result = $conn->query("SELECT COUNT(*) as count FROM specialtokenenable");
             $stats['total_special_tokens'] = $result->fetch_assoc()['count'];
             $result = $conn->query("SELECT COUNT(*) as count FROM mess_menu");
             $stats['total_menus'] = $result->fetch_assoc()['count'];
-            $result = $conn->query("SELECT COUNT(*) as count FROM mess_tokens");
+            $sql = "SELECT COUNT(*) as count FROM mess_tokens mt LEFT JOIN students s ON mt.roll_number = s.roll_number";
+            if ($messScopeGender !== null) {
+                $sql .= " WHERE s.gender = '" . mysqli_real_escape_string($conn, $messScopeGender) . "'";
+            }
+            $result = $conn->query($sql);
             $stats['total_tokens'] = $result->fetch_assoc()['count'];
             $result = $conn->query("SELECT COALESCE(SUM(fee), 0) as total FROM specialtokenenable");
             $stats['total_special_token_fees'] = $result->fetch_assoc()['total'];
@@ -4783,6 +4843,7 @@ if (!empty($action)) {
             break;
 
         case 'create_special_token':
+            require_mess_access_role();
 
             $from_date  = $_POST['from_date'] ?? '';
             $from_time  = $_POST['from_time'] ?? '';
@@ -4831,6 +4892,7 @@ if (!empty($action)) {
 
 
         case 'read_special_tokens':
+            require_mess_access_role();
             // Read active special tokens
             $sql = "SELECT * FROM specialtokenenable WHERE DATE_FORMAT(CONCAT(to_date, ' ', to_time), '%Y-%m-%d %H:%i:%s') > NOW() ORDER BY created_at DESC";
             $result = $conn->query($sql);
@@ -4842,6 +4904,7 @@ if (!empty($action)) {
             break;
 
         case 'read_inactive_special_tokens':
+            require_mess_access_role();
 
             $sql = "
         SELECT *
@@ -4863,6 +4926,7 @@ if (!empty($action)) {
 
 
         case 'update_special_token':
+            require_mess_access_role();
 
             $menu_id    = intval($_POST['menu_id']);
             $from_date  = $_POST['from_date'] ?? null;
@@ -4921,6 +4985,7 @@ if (!empty($action)) {
 
 
         case 'end_special_token':
+            require_mess_access_role();
             // End special token
             $menu_id = intval($_POST['menu_id']);
             $stmt = $conn->prepare("UPDATE specialtokenenable SET status='ended' WHERE menu_id=?");
@@ -4934,6 +4999,7 @@ if (!empty($action)) {
             break;
 
         case 'delete_special_token':
+            require_mess_access_role();
             // Delete special token
             $menu_id = intval($_POST['menu_id']);
             $stmt = $conn->prepare("DELETE FROM specialtokenenable WHERE menu_id=?");
@@ -5170,6 +5236,8 @@ if (!empty($action)) {
             break;
 
         case 'get_revenue':
+            require_mess_access_role();
+            $messScopeGender = get_mess_scope_gender();
             // Get revenue
             $filterMonth = $_POST['filter_month'] ?? '';
 
@@ -5182,8 +5250,13 @@ if (!empty($action)) {
                                COUNT(mt.token_id) as tokens_count, 
                                COALESCE(SUM(mt.special_fee), 0) as revenue 
                         FROM mess_tokens mt 
+                                                LEFT JOIN students s ON mt.roll_number = s.roll_number
                         WHERE mt.token_type = 'Special' 
-                          AND DATE_FORMAT(mt.token_date, '%Y-%m') = ? 
+                                                    AND DATE_FORMAT(mt.token_date, '%Y-%m') = ?";
+                        if ($messScopeGender !== null) {
+                                $sql .= " AND s.gender = '" . mysqli_real_escape_string($conn, $messScopeGender) . "'";
+                        }
+                        $sql .= " 
                         GROUP BY mt.token_date 
                         ORDER BY mt.token_date DESC";
 
@@ -5202,6 +5275,8 @@ if (!empty($action)) {
             break;
 
         case 'get_consumption':
+            require_mess_access_role();
+            $messScopeGender = get_mess_scope_gender();
             // Get consumption
             $filterMonth = $_POST['filter_month'] ?? '';
 
@@ -5217,7 +5292,11 @@ if (!empty($action)) {
                         FROM mess_tokens mt 
                         LEFT JOIN students s ON mt.roll_number = s.roll_number 
                         WHERE mt.token_type = 'Special' 
-                          AND DATE_FORMAT(mt.token_date, '%Y-%m') = ? 
+                                                    AND DATE_FORMAT(mt.token_date, '%Y-%m') = ?";
+                        if ($messScopeGender !== null) {
+                                $sql .= " AND s.gender = '" . mysqli_real_escape_string($conn, $messScopeGender) . "'";
+                        }
+                        $sql .= " 
                         GROUP BY mt.roll_number, s.name 
                         ORDER BY total_spent DESC";
 
