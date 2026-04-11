@@ -18,8 +18,10 @@ if (!is_any_admin_role()) {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
@@ -952,21 +954,7 @@ if (!is_any_admin_role()) {
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="menu" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5><i class="fas fa-utensils"></i> Menu Management</h5>
-                            <div class="btn">
-                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#breakfastModal">
-                                    <i class="fas fa-plus"></i> Breakfast
-                                </button>
-                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#lunchModal">
-                                    <i class="fas fa-plus"></i> Lunch
-                                </button>
-                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#snacksModal">
-                                    <i class="fas fa-plus"></i> Snacks
-                                </button>
-                                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#dinnerModal">
-                                    <i class="fas fa-plus"></i> Dinner
-                                </button>
-                            </div>
+                            <h5><i class="fas fa-utensils"></i> Menu Items</h5>
                         </div>
                         <div class="filter-section">
                             <div class="row align-items-end">
@@ -1001,10 +989,8 @@ if (!is_any_admin_role()) {
                     <div class="tab-pane fade" id="specialtokens" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5><i class="fas fa-star"></i> Special Tokens Management</h5>
-                            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#specialtokenModal">
-                                Enable Special Token
-                            </button>
                         </div>
+                        <div class="loading" id="specialLoading" style="display:none;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                         <div class="table-responsive">
                             <table id="specialTable" class="table table-bordered table-hover">
                                 <thead>
@@ -1073,7 +1059,9 @@ if (!is_any_admin_role()) {
                                         <th>Items</th>
                                         <th>Fee (₹)</th>
                                         <th>Token Date</th>
+                                        <th>Status</th>
                                         <th>Requested At</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -1163,29 +1151,26 @@ if (!is_any_admin_role()) {
 
                     <div class="tab-pane fade" id="history" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5><i class="fas fa-history"></i> Activity History</h5>
-                            <div class="btn">
-                                <button type="button" class="btn btn-secondary" onclick="viewHistory('menu')">Menu History</button>
-                                <button type="button" class="btn btn-secondary" onclick="viewHistory('special')">Special Token History</button>
-                            </div>
+                            <h5><i class="fas fa-history"></i> Token History (Expired/Inactive)</h5>
                         </div>
+                        <div class="loading" id="historyLoading" style="display:none;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
                         <div class="table-responsive">
                             <table id="historyTable" class="table table-bordered table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Type</th>
-                                        <th>Date</th>
-                                        <th>Details</th>
-                                        <th>Description</th>
-                                        <th>Amount</th>
-                                        <th>Created At</th>
+                                        <th>S.No</th>
+                                        <th>Meal Type</th>
+                                        <th>Items</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Token Date</th>
+                                        <th>Fee (₹)</th>
+                                        <th>Token Type</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="6" class="text-center">Click a filter button to view history</td>
-                                    </tr>
-                                </tbody>
+                                <tbody></tbody>
                             </table>
                         </div>
                     </div>
@@ -1379,6 +1364,12 @@ if (!is_any_admin_role()) {
         let specialTokensData = [];
 
         $(document).ready(function() {
+            // Initialize Bootstrap tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
             loadDashboard();
             loadMenu();
             setInterval(loadMenu, 30000);
@@ -1463,15 +1454,16 @@ if (!is_any_admin_role()) {
                 tables.menu.destroy();
                 tables.menu = null;
             }
-            const tbody = $('#menuTable tbody').empty();
+            const tbody = $('#messMenuTable tbody').empty();
             if (!data || data.length === 0) {
-                tbody.html('<tr><td colspan="4" class="text-center">No menu found for this date</td></tr>');
+                tbody.html('<tr><td colspan="7" class="text-center">No menu found for this date</td></tr>');
                 return;
             }
-            data.forEach((item) => {
-                tbody.append(`<tr><td>${item.date}</td><td><strong>${item.meal_type}</strong></td><td>${item.items}</td><td>₹${parseFloat(item.fee).toFixed(2)}</td></tr>`);
+            data.forEach((item, index) => {
+                const categoryBadge = item.category ? `<span class="badge bg-info">${item.category}</span>` : '<span class="badge bg-secondary">N/A</span>';
+                tbody.append(`<tr><td>${index + 1}</td><td>${item.date}</td><td><span class="badge bg-primary">${item.meal_type}</span></td><td>${item.items}</td><td>${categoryBadge}</td><td>₹${parseFloat(item.fee).toFixed(2)}</td><td><span class="badge bg-success">Active</span></td></tr>`);
             });
-            tables.menu = $('#menuTable').DataTable({
+            tables.menu = $('#messMenuTable').DataTable({
                 paging: true,
                 pageLength: 10,
                 searching: true,
@@ -1481,7 +1473,8 @@ if (!is_any_admin_role()) {
 
         function loadSpecialTokens() {
             $('#specialLoading').show();
-            // Load both active and inactive special tokens like in mess panel
+            $('#historyLoading').show();
+            
             $.post('../api.php', {
                 action: 'read_special_tokens'
             }, function(response1) {
@@ -1489,28 +1482,39 @@ if (!is_any_admin_role()) {
                     action: 'read_inactive_special_tokens'
                 }, function(response2) {
                     $('#specialLoading').hide();
-                    let allTokens = [];
+                    $('#historyLoading').hide();
+                    
+                    let activeTokens = [];
+                    let expiredTokens = [];
+                    
                     if (response1 && response1.success && Array.isArray(response1.data)) {
-                        allTokens = allTokens.concat(response1.data.map(t => ({
-                            ...t,
-                            status: 'active'
-                        })));
+                        const now = new Date();
+                        response1.data.forEach(token => {
+                            const toDateTime = new Date(token.to_date + ' ' + token.to_time);
+                            if (now > toDateTime) {
+                                expiredTokens.push({...token, status_type: 'expired'});
+                            } else {
+                                activeTokens.push({...token, status_type: 'active'});
+                            }
+                        });
                     }
+                    
                     if (response2 && response2.success && Array.isArray(response2.data)) {
-                        allTokens = allTokens.concat(response2.data.map(t => ({
-                            ...t,
-                            status: 'inactive'
-                        })));
+                        expiredTokens = expiredTokens.concat(response2.data.map(t => ({...t, status_type: 'inactive'})));
                     }
-                    specialTokensData = allTokens;
-                    displaySpecialTokens(allTokens);
-                }, 'json').fail(function() {
+                    
+                    specialTokensData = activeTokens;
+                    displaySpecialTokens(activeTokens);
+                    displayTokenHistory(expiredTokens);
+                }, 'json').fail(function(err) {
                     $('#specialLoading').hide();
-                    console.log('Error loading inactive special tokens');
+                    $('#historyLoading').hide();
+                    console.error('Error loading inactive tokens:', err);
                 });
-            }, 'json').fail(function() {
+            }, 'json').fail(function(err) {
                 $('#specialLoading').hide();
-                console.log('Error loading active special tokens');
+                $('#historyLoading').hide();
+                console.error('Error loading special tokens:', err);
             });
         }
 
@@ -1523,16 +1527,11 @@ if (!is_any_admin_role()) {
             const tbody = $('#specialTable tbody').empty();
 
             if (!data || data.length === 0) {
-                tbody.html('<tr><td colspan="10" class="text-center">No special tokens</td></tr>');
+                tbody.html('<tr><td colspan="10" class="text-center">No active special tokens</td></tr>');
                 return;
             }
 
             data.forEach((item, i) => {
-
-                const statusBadge = item.status === 'active' ?
-                    '<span class="badge bg-success">Active</span>' :
-                    '<span class="badge bg-danger">Inactive</span>';
-
                 let tokenTypeDisplay;
                 if (parseInt(item.max_usage) === -1) {
                     tokenTypeDisplay = 'Unlimited';
@@ -1540,31 +1539,92 @@ if (!is_any_admin_role()) {
                     tokenTypeDisplay = `Limited (${item.max_usage})`;
                 }
 
-                const actionButtons = item.status === 'active' ?
-                    `<button class="btn btn-warning btn-sm" onclick="editSpecialToken(${item.menu_id})" title="Edit"><i class="fas fa-edit"></i></button>
-                     <button class="btn btn-danger btn-sm" onclick="deleteSpecialToken(${item.menu_id})" title="Delete"><i class="fas fa-trash"></i></button>` :
-                    `<button class="btn btn-success btn-sm" onclick="activateToken(${item.menu_id})" title="Activate"><i class="fas fa-play"></i></button>
-                     <button class="btn btn-danger btn-sm" onclick="deleteSpecialToken(${item.menu_id})" title="Delete"><i class="fas fa-trash"></i></button>`;
+                const actionButtons = `<button class="btn btn-danger btn-sm me-2" onclick="deactivateSpecialToken(${item.menu_id})" data-bs-toggle="tooltip" data-bs-title="Deactivate"><i class="fas fa-pause"></i></button>
+                                   <button class="btn btn-secondary btn-sm" onclick="deleteSpecialToken(${item.menu_id})" data-bs-toggle="tooltip" data-bs-title="Delete"><i class="fas fa-trash"></i></button>`;
 
                 tbody.append(`
-            <tr>
-                <td>${i + 1}</td>
-                <td><strong>${item.meal_type}</strong></td>
-                <td>${item.menu_items}</td>
-                <td>${item.from_date}<br><small>${item.from_time.substring(0,5)}</small></td>
-                <td>${item.to_date}<br><small>${item.to_time.substring(0,5)}</small></td>
-                <td><strong>${item.token_date}</strong></td>
-                <td>₹${parseFloat(item.fee).toFixed(2)}</td>
-                <td><span class="badge bg-info">${tokenTypeDisplay}</span></td>
-                <td>${statusBadge}</td>
-                <td>${actionButtons}</td>
-            </tr>
-        `);
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${item.meal_type}</strong></td>
+                    <td>${item.menu_items}</td>
+                    <td>${item.from_date}<br><small>${item.from_time.substring(0,5)}</small></td>
+                    <td>${item.to_date}<br><small>${item.to_time.substring(0,5)}</small></td>
+                    <td><strong>${item.token_date}</strong></td>
+                    <td>₹${parseFloat(item.fee).toFixed(2)}</td>
+                    <td><span class="badge bg-info">${tokenTypeDisplay}</span></td>
+                    <td><span class="badge bg-success">Active</span></td>
+                    <td>${actionButtons}</td>
+                </tr>`);
+            });
+
+            const tooltipTriggerListSpecial = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerListSpecial.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
             });
 
             tables.special = $('#specialTable').DataTable({
                 paging: true,
-                pageLength: 10
+                pageLength: 10,
+                order: [[5, 'desc']]
+            });
+        }
+
+        function displayTokenHistory(data) {
+            if (tables.history) {
+                tables.history.destroy();
+                tables.history = null;
+            }
+
+            const tbody = $('#historyTable tbody').empty();
+
+            if (!data || data.length === 0) {
+                tbody.html('<tr><td colspan="10" class="text-center">No expired or inactive tokens</td></tr>');
+                return;
+            }
+
+            data.forEach((item, i) => {
+                let tokenTypeDisplay;
+                if (parseInt(item.max_usage) === -1) {
+                    tokenTypeDisplay = 'Unlimited';
+                } else {
+                    tokenTypeDisplay = `Limited (${item.max_usage})`;
+                }
+
+                let statusBadge, actionButton;
+                
+                if (item.status_type === 'expired') {
+                    statusBadge = '<span class="badge bg-danger">Expired</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-warning text-dark">Inactive</span>';
+                }
+                
+                actionButton = `<button class="btn btn-success btn-sm me-2" onclick="activateSpecialToken(${item.menu_id})" data-bs-toggle="tooltip" data-bs-title="Activate"><i class="fas fa-play"></i></button>
+                               <button class="btn btn-secondary btn-sm" onclick="deleteSpecialToken(${item.menu_id})" data-bs-toggle="tooltip" data-bs-title="Delete"><i class="fas fa-trash"></i></button>`;
+
+                tbody.append(`
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${item.meal_type}</strong></td>
+                    <td>${item.menu_items}</td>
+                    <td>${item.from_date}<br><small>${item.from_time.substring(0,5)}</small></td>
+                    <td>${item.to_date}<br><small>${item.to_time.substring(0,5)}</small></td>
+                    <td><strong>${item.token_date}</strong></td>
+                    <td>₹${parseFloat(item.fee).toFixed(2)}</td>
+                    <td><span class="badge bg-info">${tokenTypeDisplay}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>${actionButton}</td>
+                </tr>`);
+            });
+
+            const tooltipTriggerListHistory = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerListHistory.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            tables.history = $('#historyTable').DataTable({
+                paging: true,
+                pageLength: 10,
+                order: [[5, 'desc']]
             });
         }
 
@@ -1735,16 +1795,33 @@ if (!is_any_admin_role()) {
         }
 
         function activateToken(menuId) {
-            const token = specialTokensData.find(t => parseInt(t.menu_id, 10) === parseInt(menuId, 10));
-            if (!token) {
-                Swal.fire('Error', 'Token not found', 'error');
-                return;
-            }
-
-            $('#activateMenuId').val(token.menu_id);
-            $('#activateToDate').val(token.to_date || '');
-            $('#activateToTime').val((token.to_time || '').substring(0, 5));
-            new bootstrap.Modal(document.getElementById('activateTokenModal')).show();
+            Swal.fire({
+                title: 'Activate Token?',
+                text: 'This will activate the token and change its status to Active.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, activate it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('../api.php', {
+                        action: 'activate_special_token',
+                        menu_id: menuId
+                    }, function(response) {
+                        if (response && response.success) {
+                            Swal.fire('Success!', 'Token activated successfully', 'success');
+                            loadSpecialTokens();
+                            loadDashboard();
+                        } else {
+                            Swal.fire('Error', response.message || 'Failed to activate token', 'error');
+                        }
+                    }, 'json').fail(function(err) {
+                        Swal.fire('Error', 'Network error: ' + err.statusText, 'error');
+                        console.error('Activation error:', err);
+                    });
+                }
+            });
         }
 
         function saveActivateToken() {
@@ -1772,6 +1849,66 @@ if (!is_any_admin_role()) {
             }, 'json');
         }
 
+        function deactivateSpecialToken(menuId) {
+            Swal.fire({
+                title: 'Deactivate Token?',
+                text: 'This will change the token status to Inactive. It will appear in the history.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, deactivate it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('../api.php', {
+                        action: 'deactivate_special_token',
+                        menu_id: menuId
+                    }, function(response) {
+                        if (response && response.success) {
+                            Swal.fire('Success!', 'Token deactivated successfully', 'success');
+                            loadSpecialTokens();
+                            loadDashboard();
+                        } else {
+                            Swal.fire('Error', response.message || 'Failed to deactivate token', 'error');
+                        }
+                    }, 'json').fail(function(err) {
+                        Swal.fire('Error', 'Network error: ' + err.statusText, 'error');
+                        console.error('Deactivation error:', err);
+                    });
+                }
+            });
+        }
+
+        function activateSpecialToken(menuId) {
+            Swal.fire({
+                title: 'Activate Token?',
+                text: 'This will change the token status to Active. It will appear in the main tokens list.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, activate it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('../api.php', {
+                        action: 'activate_special_token_status',
+                        menu_id: menuId
+                    }, function(response) {
+                        if (response && response.success) {
+                            Swal.fire('Success!', 'Token activated successfully', 'success');
+                            loadSpecialTokens();
+                            loadDashboard();
+                        } else {
+                            Swal.fire('Error', response.message || 'Failed to activate token', 'error');
+                        }
+                    }, 'json').fail(function(err) {
+                        Swal.fire('Error', 'Network error: ' + err.statusText, 'error');
+                        console.error('Activation error:', err);
+                    });
+                }
+            });
+        }
+
         function resetRequestsFilter() {
             $('#requestsFilterMonth').val('<?php echo date('Y-m'); ?>');
             $('#requestsFilterDate').val('');
@@ -1787,7 +1924,7 @@ if (!is_any_admin_role()) {
             }
             const tbody = $('#requestsTable tbody').empty();
             if (!data || data.length === 0) {
-                tbody.html('<tr><td colspan="8" class="text-center">No token requests</td></tr>');
+                tbody.html('<tr><td colspan="10" class="text-center">No token requests</td></tr>');
                 return;
             }
             data.forEach((item, i) => {
@@ -1810,6 +1947,22 @@ if (!is_any_admin_role()) {
                         requestedAtFormatted = item.requested_at;
                     }
                 }
+                const status = item.status || 'Generated';
+                let statusBadge = '<span class="badge bg-warning text-dark">Generated</span>';
+                let actionButton = `<button class="btn btn-sm btn-success me-2" onclick="activateTokenRequest(${item.token_id})" data-bs-toggle="tooltip" data-bs-title="Approve"><i class="fas fa-check"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deactivateTokenRequest(${item.token_id})" data-bs-toggle="tooltip" data-bs-title="Reject"><i class="fas fa-ban"></i></button>`;
+                
+                if (status === 'Used') {
+                    statusBadge = '<span class="badge bg-success">Used</span>';
+                    actionButton = '<span class="badge bg-secondary">No Action</span>';
+                } else if (status === 'Cancelled') {
+                    statusBadge = '<span class="badge bg-danger">Cancelled</span>';
+                    actionButton = '<span class="badge bg-secondary">No Action</span>';
+                } else if (status === 'Expired') {
+                    statusBadge = '<span class="badge bg-info">Expired</span>';
+                    actionButton = '<span class="badge bg-secondary">No Action</span>';
+                }
+                
                 tbody.append(`<tr><td>${i+1}</td>
                 <td><strong>${item.roll_number}</strong></td>
                 <td>${item.student_name}</td>
@@ -1817,11 +1970,73 @@ if (!is_any_admin_role()) {
                 <td>${item.menu_items}</td>
                 <td>₹${parseFloat(item.fee).toFixed(2)}</td>
                 <td><strong>${item.token_date}</strong></td>
-                <td>${requestedAtFormatted}</td></tr>`);
+                <td>${statusBadge}</td>
+                <td>${requestedAtFormatted}</td>
+                <td>${actionButton}</td></tr>`);
             });
+            // Re-initialize tooltips after DataTable renders
+            const tooltipTriggerList2 = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList2.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
             tables.requests = $('#requestsTable').DataTable({
                 paging: true,
                 pageLength: 10
+            });
+        }
+
+        function activateTokenRequest(tokenId) {
+            Swal.fire({
+                title: 'Approve Token Request?',
+                text: 'This will mark the token as approved and ready for use.',
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, approve it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('../api.php', {
+                        action: 'activate_token_request',
+                        token_id: tokenId
+                    }, function(response) {
+                        if (response && response.success) {
+                            Swal.fire('Success!', response.message || 'Token approved successfully', 'success');
+                            loadRequests();
+                            loadDashboard();
+                        } else {
+                            Swal.fire('Error', response.message || 'Failed to approve token', 'error');
+                        }
+                    }, 'json');
+                }
+            });
+        }
+
+        function deactivateTokenRequest(tokenId) {
+            Swal.fire({
+                title: 'Reject Token Request?',
+                text: 'This will cancel the token request.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, reject it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('../api.php', {
+                        action: 'deactivate_token_request',
+                        token_id: tokenId
+                    }, function(response) {
+                        if (response && response.success) {
+                            Swal.fire('Success!', response.message || 'Token request cancelled', 'success');
+                            loadRequests();
+                            loadDashboard();
+                        } else {
+                            Swal.fire('Error', response.message || 'Failed to cancel token request', 'error');
+                        }
+                    }, 'json');
+                }
             });
         }
 
