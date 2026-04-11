@@ -1640,7 +1640,7 @@ if (!empty($action)) {
             // Get mess menu for a specific date
             $date = $_POST['date'] ?? date('Y-m-d');
 
-            $sql = "SELECT menu_id, date, meal_type, items, IFNULL(fee, 0) as fee FROM mess_menu WHERE date = ? ORDER BY FIELD(meal_type, 'Breakfast', 'Lunch', 'Snacks', 'Dinner')";
+            $sql = "SELECT menu_id, date, meal_type, items, IFNULL(category, 'Regular') as category, IFNULL(fee, 0) as fee FROM mess_menu WHERE date = ? ORDER BY FIELD(meal_type, 'Breakfast', 'Lunch', 'Snacks', 'Dinner')";
 
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("s", $date);
@@ -1654,6 +1654,7 @@ if (!empty($action)) {
                     'date' => $row['date'],
                     'meal_type' => $row['meal_type'],
                     'items' => $row['items'],
+                    'category' => $row['category'],
                     'fee' => number_format((float) $row['fee'], 2, '.', '')
                 ];
             }
@@ -1707,6 +1708,7 @@ if (!empty($action)) {
                             COALESCE(st.menu_items, mt.menu) as menu_items, 
                             COALESCE(mt.special_fee, 0) as fee, 
                             mt.token_date, 
+                            mt.status,
                             DATE_FORMAT(mt.created_at, '%Y-%m-%d %H:%i:%s') as requested_at 
                         FROM mess_tokens mt 
                         LEFT JOIN students s ON mt.roll_number = s.roll_number 
@@ -1793,6 +1795,7 @@ if (!empty($action)) {
                         'menu_items' => $menuItems,
                         'fee' => number_format((float) $row['fee'], 2, '.', ''),
                         'token_date' => $row['token_date'],
+                        'status' => $row['status'],
                         'requested_at' => $row['requested_at']
                     ];
                 }
@@ -1805,6 +1808,56 @@ if (!empty($action)) {
             }
 
             echo json_encode(['success' => true, 'data' => $data, 'total_items' => count($data)]);
+            break;
+
+        case 'activate_token_request':
+            require_admin_role();
+            $tokenId = $_POST['token_id'] ?? null;
+            
+            if (!$tokenId) {
+                echo json_encode(['success' => false, 'message' => 'Token ID is required']);
+                break;
+            }
+            
+            $sql = "UPDATE mess_tokens SET status = 'Used', used_at = NOW() WHERE token_id = ? AND status = 'Generated'";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $tokenId);
+            
+            if ($stmt->execute()) {
+                if ($stmt->affected_rows > 0) {
+                    echo json_encode(['success' => true, 'message' => 'Token approved successfully']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Token is not in Generated status or does not exist']);
+                }
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to update token status']);
+            }
+            $stmt->close();
+            break;
+
+        case 'deactivate_token_request':
+            require_admin_role();
+            $tokenId = $_POST['token_id'] ?? null;
+            
+            if (!$tokenId) {
+                echo json_encode(['success' => false, 'message' => 'Token ID is required']);
+                break;
+            }
+            
+            $sql = "UPDATE mess_tokens SET status = 'Cancelled' WHERE token_id = ? AND status = 'Generated'";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $tokenId);
+            
+            if ($stmt->execute()) {
+                if ($stmt->affected_rows > 0) {
+                    echo json_encode(['success' => true, 'message' => 'Token request cancelled successfully']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Token is not in Generated status or does not exist']);
+                }
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to cancel token request']);
+            }
+            $stmt->close();
             break;
 
         case 'get_monthly_revenue':
@@ -5232,60 +5285,55 @@ if (!empty($action)) {
             break;
 
         case 'create_special_token':
-            require_mess_access_role();
+            try {
+                require_mess_access_role();
 
-            $from_date  = $_POST['from_date'] ?? '';
-            $from_time  = $_POST['from_time'] ?? '';
-            $to_date    = $_POST['to_date'] ?? '';
-            $to_time    = $_POST['to_time'] ?? '';
-            $token_date = $_POST['token_date'] ?? '';
-            $free_token_limit = $_POST['freetokenlimit'] ?? null; // Optional field for free token limit
-            $meal_type  = $_POST['meal_type'] ?? '';
-            $menu_items = $_POST['menu_items'] ?? '';
-            $fee        = floatval($_POST['fee'] ?? 0.00);
+                $from_date  = $_POST['from_date'] ?? '';
+                $from_time  = $_POST['from_time'] ?? '';
+                $to_date    = $_POST['to_date'] ?? '';
+                $to_time    = $_POST['to_time'] ?? '';
+                $token_date = $_POST['token_date'] ?? '';
+                $meal_type  = $_POST['meal_type'] ?? '';
+                $menu_items = $_POST['menu_items'] ?? '';
+                $fee        = floatval($_POST['fee'] ?? 0.00);
+                $max_usage  = intval($_POST['max_usage'] ?? -1);
 
-            // NEW
-            $max_usage  = intval($_POST['max_usage'] ?? -1); // -1 = unlimited
+                if (!$from_date || !$from_time || !$to_date || !$to_time || !$token_date || !$meal_type || !$menu_items) {
+                    echo json_encode(['success' => false, 'message' => 'All fields are required']);
+                    break;
+                }
 
-            $stmt = $conn->prepare("
-        INSERT INTO specialtokenenable
-        (from_date, from_time, to_date, to_time, token_date,
-         meal_type, menu_items, fee,free_limit , max_usage, used_count, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?,? , ?, ?, 0, 'active')
-    ");
+                // Insert without free_limit - it will use default value
+                $stmt = $conn->prepare("INSERT INTO specialtokenenable (from_date, from_time, to_date, to_time, token_date, meal_type, menu_items, fee, max_usage, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')");
 
-            $stmt->bind_param(
-                "sssssssdii",
-                $from_date,
-                $from_time,
-                $to_date,
-                $to_time,
-                $token_date,
-                $meal_type,
-                $menu_items,
-                $fee,
-                $free_token_limit,
-                $max_usage
-            );
+                if (!$stmt) {
+                    echo json_encode(['success' => false, 'message' => 'Prepare failed: ' . $conn->error]);
+                    break;
+                }
 
-            if ($stmt->execute()) {
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Special token created',
-                    'id' => $conn->insert_id
-                ]);
-            } else {
-                echo json_encode(['success' => false, 'message' => $conn->error]);
+                $stmt->bind_param("sssssssdi", $from_date, $from_time, $to_date, $to_time, $token_date, $meal_type, $menu_items, $fee, $max_usage);
+
+                if ($stmt->execute()) {
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Special token created successfully',
+                        'id' => $conn->insert_id
+                    ]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Execute failed: ' . $stmt->error]);
+                }
+
+                $stmt->close();
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Exception: ' . $e->getMessage()]);
             }
-
-            $stmt->close();
             break;
 
 
         case 'read_special_tokens':
             require_mess_access_role();
-            // Read active special tokens
-            $sql = "SELECT * FROM specialtokenenable WHERE DATE_FORMAT(CONCAT(to_date, ' ', to_time), '%Y-%m-%d %H:%i:%s') > NOW() ORDER BY created_at DESC";
+            // Read active special tokens (only status='active' and not expired)
+            $sql = "SELECT * FROM specialtokenenable WHERE status='active' AND DATE_FORMAT(CONCAT(to_date, ' ', to_time), '%Y-%m-%d %H:%i:%s') > NOW() ORDER BY created_at DESC";
             $result = $conn->query($sql);
             $tokens = [];
             while ($row = $result->fetch_assoc()) {
@@ -5300,8 +5348,7 @@ if (!empty($action)) {
             $sql = "
         SELECT *
         FROM specialtokenenable
-        WHERE DATE_FORMAT(CONCAT(to_date,' ',to_time),'%Y-%m-%d %H:%i:%s') <= NOW()
-        AND status != 'ended'
+        WHERE status='inactive' OR (DATE_FORMAT(CONCAT(to_date,' ',to_time),'%Y-%m-%d %H:%i:%s') <= NOW() AND status != 'ended')
         ORDER BY created_at DESC
     ";
 
@@ -5315,6 +5362,39 @@ if (!empty($action)) {
             echo json_encode(['success' => true, 'data' => $tokens]);
             break;
 
+
+        case 'activate_special_token':
+            try {
+                $menu_id = intval($_POST['menu_id'] ?? 0);
+
+                if (!$menu_id) {
+                    echo json_encode(['success' => false, 'message' => 'Invalid token ID']);
+                    break;
+                }
+
+                $stmt = $conn->prepare("UPDATE specialtokenenable SET status='active' WHERE menu_id=?");
+                if (!$stmt) {
+                    echo json_encode(['success' => false, 'message' => 'Database error: ' . $conn->error]);
+                    break;
+                }
+
+                $stmt->bind_param("i", $menu_id);
+
+                if ($stmt->execute()) {
+                    if ($stmt->affected_rows > 0) {
+                        echo json_encode(['success' => true, 'message' => 'Token activated successfully']);
+                    } else {
+                        echo json_encode(['success' => false, 'message' => 'Token not found or already active']);
+                    }
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Error executing query: ' . $stmt->error]);
+                }
+
+                $stmt->close();
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+            }
+            break;
 
         case 'update_special_token':
             require_mess_access_role();
@@ -5397,6 +5477,34 @@ if (!empty($action)) {
             $stmt->bind_param("i", $menu_id);
             if ($stmt->execute()) {
                 echo json_encode(['success' => true, 'message' => 'Special token deleted']);
+            } else {
+                echo json_encode(['success' => false, 'message' => $conn->error]);
+            }
+            $stmt->close();
+            break;
+
+        case 'deactivate_special_token':
+            require_mess_access_role();
+            // Deactivate special token - change status to inactive
+            $menu_id = intval($_POST['menu_id']);
+            $stmt = $conn->prepare("UPDATE specialtokenenable SET status='inactive' WHERE menu_id=?");
+            $stmt->bind_param("i", $menu_id);
+            if ($stmt->execute()) {
+                echo json_encode(['success' => true, 'message' => 'Token deactivated successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => $conn->error]);
+            }
+            $stmt->close();
+            break;
+
+        case 'activate_special_token_status':
+            require_mess_access_role();
+            // Activate special token - change status to active
+            $menu_id = intval($_POST['menu_id']);
+            $stmt = $conn->prepare("UPDATE specialtokenenable SET status='active' WHERE menu_id=?");
+            $stmt->bind_param("i", $menu_id);
+            if ($stmt->execute()) {
+                echo json_encode(['success' => true, 'message' => 'Token activated successfully']);
             } else {
                 echo json_encode(['success' => false, 'message' => $conn->error]);
             }

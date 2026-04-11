@@ -1772,21 +1772,29 @@
                     action: 'read_inactive_special_tokens'
                 }, function(response2) {
                     allMergedTokens = [];
+                    
                     if (response1 && response1.success && Array.isArray(response1.data)) {
                         allMergedTokens = allMergedTokens.concat(response1.data.map(t => ({
                             ...t,
                             status: 'Active'
                         })));
                     }
+                    
                     if (response2 && response2.success && Array.isArray(response2.data)) {
                         allMergedTokens = allMergedTokens.concat(response2.data.map(t => ({
                             ...t,
                             status: 'Inactive'
                         })));
                     }
+                    
+                    console.log('Loaded merged tokens:', allMergedTokens);
                     displayMergedSpecialTokens();
-                }, 'json');
-            }, 'json');
+                }, 'json').fail(function(err) {
+                    console.error('Error loading inactive tokens:', err);
+                });
+            }, 'json').fail(function(err) {
+                console.error('Error loading active tokens:', err);
+            });
         }
 
         function displayMergedSpecialTokens() {
@@ -1888,18 +1896,27 @@ if (maxUsage === -1) {
         max_usage: maxUsage
     };
 
+    console.log('Sending data:', data);
+
     $.post('../api.php', data, function (response) {
+        console.log('Response:', response);
         if (response.success) {
             Swal.fire('Success', response.message, 'success');
             bootstrap.Modal.getInstance(
                 document.getElementById('specialtokenModal')
             ).hide();
+            $('#specialtokenModal input, #specialtokenModal textarea').not('[type=radio]').val('');
+            $('#limitedToken').prop('checked', true);
+            $('#unlimitedToken').prop('checked', false);
             loadMergedSpecialTokens();
             loadStatistics();
         } else {
-            Swal.fire('Error', response.message, 'error');
+            Swal.fire('Error', response.message || 'Failed to create token', 'error');
         }
-    }, 'json');
+    }, 'json').fail(function(err) {
+        console.error('AJAX Error:', err);
+        Swal.fire('Error', 'Network error: ' + (err.responseText || err.statusText), 'error');
+    });
 }
 
        function editSpecialToken(menuId) {
